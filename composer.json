@@ -1,0 +1,20 @@
+{
+    "name": "speedwork/database",
+    "type": "library",
+    "description": "Speedwork database Library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "sankar",
+            "email": "sankar.suda@gmail.com"
+        }
+    ],
+    "require": {
+        "php" : ">=5.4",
+        "speedwork/util" : "dev-master"
+    },
+    "autoload" : {
+        "psr-4": { "Speedwork\\Database": "src" }
+    },
+    "minimum-stability": "dev"
+}
