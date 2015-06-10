@@ -12,6 +12,7 @@ namespace Speedwork\Database;
 
 use Exception;
 use Speedwork\Core\Registry;
+Use Speedwork\Core\Configure;
 use Speedwork\Util\Pagination;
 
 /**
@@ -19,27 +20,19 @@ use Speedwork\Util\Pagination;
  */
 class Database
 {
-    public $cache;
-    public $connection;
-    private $use_cache = false;
-    private $data;
+    private $connection;
     private $self;
+    private $prefix;
+    private $query;
 
     /**
      * Print full query debug info?
      *
      * @var bool
      */
-    public $fullDebug = true;
+    private $fullDebug = true;
 
-    public $queries = [];
-
-    /**
-     * Holds instances DataSource objects.
-     *
-     * @var array
-     */
-    protected static $_dataSources = [];
+    private $queries = [];
 
     /**
      * Returns a singleton instance.
@@ -69,15 +62,12 @@ class Database
      **/
     public function connect($config = [])
     {
-        if (isset($config['prefix']) && !defined('_PREFIX')) {
-            define('_PREFIX', $config['prefix']);
-        }
+        $this->prefix = $config['prefix'];
 
         $driver = ($config['driver']) ? $config['driver'] : 'mysql';
         $sig    = md5($config['database'].'_'.$config['host']).$config['sig'];
         $db     = self::getInstance($driver, $sig);
 
-        $this->use_cache  = $config['cache'];
         $db->config       = $config;
         $this->startQuote = $db->startQuote;
         $this->endQuote   = $db->endQuote;
@@ -137,13 +127,14 @@ class Database
      **/
     public function fetch($sql)
     {
-        $sql = str_replace('#__', _PREFIX, $sql);
+        $sql = str_replace('#__', $this->prefix, $sql);
 
         return $this->getFromDB($sql);
     }
 
     private function getFromDB($sql)
     {
+        $this->query = $sql;
         return $this->self->fetch($sql);
     }
 
@@ -210,8 +201,8 @@ class Database
      **/
     public function query($sql)
     {
-        $sql             = str_replace('#__', _PREFIX, $sql);
-        $this->sql_query = $sql;
+        $sql             = str_replace('#__', $this->prefix, $sql);
+        $this->query = $sql;
 
         return $this->self->query($sql);
     }
@@ -270,7 +261,7 @@ class Database
             $helpers = $params['helper'];
         }
 
-        if (Configure::get('multisite')) {
+        if (Configure::read('multisite')) {
             $helpers[] = 'multifind';
         }
 
@@ -455,14 +446,13 @@ class Database
                 unset($d);
                 break;
         }
-        $this->sql_query = $query;
 
         //if method exists
         if ($helpers && is_array($helpers)) {
             foreach ($helpers as $helper) {
                 $help = Registry::get('application')->helper($helper);
                 if (method_exists($help, 'afterFind')) {
-                    $return = $help->afterFind($return, $params['type']);
+                    $return = $help->afterFind($return, $params);
                 }
             }
         }
@@ -626,7 +616,7 @@ class Database
         //check is there any callback helper in this Query
         $helpers = Registry::get('SaveHelpers');
 
-        if (Configure::get('multisite')) {
+        if (Configure::read('multisite')) {
             $helpers[] = 'multisave';
         }
 
@@ -671,8 +661,7 @@ class Database
         $params['table']  = $table;
         $params['fields'] = $k;
         $params['values'] = $v;
-        $query            = $this->self->buildStatement($params, $table, 'insert');
-        $this->sql_query  = $query;
+        $query  = $this->self->buildStatement($params, $table, 'insert');
 
         return $this->query($query);
     }
@@ -715,7 +704,7 @@ class Database
         //check is there any callback helper in this Query
         $helpers = Registry::get('UpdateHelpers');
 
-        if (Configure::get('multisite')) {
+        if (Configure::read('multisite')) {
             $helpers[] = 'multiupdate';
         }
 
@@ -750,8 +739,7 @@ class Database
         }
         $params['fields'] = $k;
 
-        $query           = $this->self->buildStatement($params, $table, 'update');
-        $this->sql_query = $query;
+        $query = $this->self->buildStatement($params, $table, 'update');
 
         return $this->query($query);
     }
@@ -781,7 +769,7 @@ class Database
             $helpers = $params['helper'];
         }
 
-        if (Configure::get('multisite')) {
+        if (Configure::read('multisite')) {
             $helpers[] = 'multidelete';
         }
 
@@ -806,8 +794,7 @@ class Database
         }
         //end of helpers
 
-        $query           = $this->self->buildStatement($params, $table, 'delete');
-        $this->sql_query = $query;
+        $query = $this->self->buildStatement($params, $table, 'delete');
 
         return $this->query($query);
     }
