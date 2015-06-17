@@ -11,8 +11,8 @@
 namespace Speedwork\Database;
 
 use Exception;
+use Speedwork\Config\Configure;
 use Speedwork\Core\Registry;
-Use Speedwork\Core\Configure;
 use Speedwork\Util\Pagination;
 
 /**
@@ -135,6 +135,7 @@ class Database
     private function getFromDB($sql)
     {
         $this->query = $sql;
+
         return $this->self->fetch($sql);
     }
 
@@ -201,7 +202,7 @@ class Database
      **/
     public function query($sql)
     {
-        $sql             = str_replace('#__', $this->prefix, $sql);
+        $sql         = str_replace('#__', $this->prefix, $sql);
         $this->query = $sql;
 
         return $this->self->query($sql);
@@ -661,7 +662,7 @@ class Database
         $params['table']  = $table;
         $params['fields'] = $k;
         $params['values'] = $v;
-        $query  = $this->self->buildStatement($params, $table, 'insert');
+        $query            = $this->self->buildStatement($params, $table, 'insert');
 
         return $this->query($query);
     }
