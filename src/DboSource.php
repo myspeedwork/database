@@ -138,7 +138,6 @@ class DboSource extends DataSource
     public function buildStatement(&$query, $table = '', $type = 'select')
     {
         $table = ($query['table']) ? $query['table'] : $table;
-        $table = str_replace('#__', _PREFIX, $table);
 
         $query = @array_merge(['offset' => null, 'joins' => []], $query);
         if (!empty($query['joins'])) {
@@ -183,7 +182,6 @@ class DboSource extends DataSource
     public function renderJoinStatement($data)
     {
         extract($data);
-        $table = str_replace('#__', _PREFIX, $table);
 
         return trim("{$type} JOIN {$table} {$alias} ON ({$conditions})");
     }
