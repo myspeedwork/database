@@ -1,6 +1,7 @@
 {
     "name": "speedwork/database",
     "type": "library",
+    "version" : "v0.0.1-dev",
     "description": "Speedwork database Library",
     "license": "MIT",
     "authors": [
