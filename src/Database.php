@@ -509,7 +509,12 @@ class Database
      */
     public function paginate($table, $type = 'all', $params = [])
     {
-        $pagingtype = ($params['pagingtype']) ? $params['pagingtype'] : 'mixed';
+        $pagingtype     = ($params['pagingtype']) ? $params['pagingtype'] : 'mixed';
+        $is_api_request = Registry::get('is_api_request');
+
+        if ($is_api_request) {
+            $pagingtype = 'api';
+        }
 
         $page = ($params['page'] && is_numeric($params['page']))
                     ? $params['page']
@@ -571,31 +576,13 @@ class Database
         $nowTotal = count($data);
         $rtotal   = $_REQUEST['total'];
         $total    = ($total_check == true) ? $total : (($rtotal) ? $rtotal : $nowTotal);
-        $next     = ($nowTotal >= $limit) ? $page + 1 : false;
-
-        $is_api_request = Registry::get('is_api_request');
-
-        if ($is_api_request) {
-            $pagingtype = 'api';
-
-            return [
-                'data'       => $data,
-                'now'        => $nowTotal,
-                'next'       => $next,
-                'page'       => $page,
-                'limit'      => $limit,
-                'limitstart' => $limit_start,
-                'total'      => $total,
-                'extra'      => $extra,
-            ];
-        }
 
         $pagination = new Pagination($pagingtype);
 
         $paging = $pagination->render($page, $total, $limit, $nowTotal);
 
-        $paging['data']  = $data;
         $paging['extra'] = $extra;
+        $paging['data']  = $data;
 
         return $paging;
     }
