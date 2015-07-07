@@ -11,7 +11,6 @@
 namespace Speedwork\Database;
 
 use Exception;
-use Speedwork\Config\Configure;
 use Speedwork\Core\Registry;
 use Speedwork\Util\Pagination;
 
@@ -24,15 +23,6 @@ class Database
     private $self;
     private $prefix;
     private $query;
-
-    /**
-     * Print full query debug info?
-     *
-     * @var bool
-     */
-    private $fullDebug = true;
-
-    private $queries = [];
 
     /**
      * Returns a singleton instance.
@@ -260,10 +250,6 @@ class Database
             $helpers = array_merge($helpers, (array) $params['helper']);
         } else {
             $helpers = $params['helper'];
-        }
-
-        if (Configure::read('multisite')) {
-            $helpers[] = 'multifind';
         }
 
         if ($helpers && is_array($helpers)) {
@@ -604,10 +590,6 @@ class Database
         //check is there any callback helper in this Query
         $helpers = Registry::get('SaveHelpers');
 
-        if (Configure::read('multisite')) {
-            $helpers[] = 'multisave';
-        }
-
         if ($helpers && is_array($helpers)) {
             unset($params['helper']); //we don't require further
 
@@ -692,10 +674,6 @@ class Database
         //check is there any callback helper in this Query
         $helpers = Registry::get('UpdateHelpers');
 
-        if (Configure::read('multisite')) {
-            $helpers[] = 'multiupdate';
-        }
-
         if ($helpers && is_array($helpers)) {
             unset($params['helper']); //we don't require further
 
@@ -755,10 +733,6 @@ class Database
             $helpers = array_merge($helpers, (array) $params['helper']);
         } else {
             $helpers = $params['helper'];
-        }
-
-        if (Configure::read('multisite')) {
-            $helpers[] = 'multidelete';
         }
 
         if ($helpers && is_array($helpers)) {
