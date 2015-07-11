@@ -13,16 +13,18 @@ namespace Speedwork\Database;
 use Exception;
 use Speedwork\Core\Registry;
 use Speedwork\Util\Pagination;
+use Speedwork\Core\Di;
 
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class Database
+class Database extends Di
 {
     private $connection;
     private $self;
     private $prefix;
     private $query;
+    private $connected = false;
 
     /**
      * Returns a singleton instance.
@@ -56,13 +58,11 @@ class Database
 
         $driver = ($config['driver']) ? $config['driver'] : 'mysql';
         $sig    = md5($config['database'].'_'.$config['host']).$config['sig'];
-        $db     = self::getInstance($driver, $sig);
+        $db     = static::getInstance($driver, $sig);
 
-        $db->config       = $config;
-        $this->startQuote = $db->startQuote;
-        $this->endQuote   = $db->endQuote;
-        $this->connected  = $db->connect();
-        $this->self       = $db;
+        $db->config      = $config;
+        $this->connected = $db->connect();
+        $this->self      = $db;
 
         if ($db->connected == false) {
             return false;
@@ -256,7 +256,7 @@ class Database
             unset($params['helper']); //we don't require further
 
             foreach ($helpers as $helper) {
-                $help = Registry::get('application')->helper($helper);
+                $help = $this->application->helper($helper);
 
                 if (method_exists($help, 'beforeFind')) {
                     $res = $help->beforeFind($params);
@@ -437,7 +437,7 @@ class Database
         //if method exists
         if ($helpers && is_array($helpers)) {
             foreach ($helpers as $helper) {
-                $help = Registry::get('application')->helper($helper);
+                $help = $this->get('application')->helper($helper);
                 if (method_exists($help, 'afterFind')) {
                     $return = $help->afterFind($return, $params);
                 }
@@ -594,7 +594,7 @@ class Database
             unset($params['helper']); //we don't require further
 
             foreach ($helpers as $helper) {
-                $help = Registry::get('application')->helper($helper);
+                $help = $this->get('application')->helper($helper);
 
                 if (method_exists($help, 'beforeSave')) {
                     $res = $help->beforeSave($data, $table, $details);
@@ -678,7 +678,7 @@ class Database
             unset($params['helper']); //we don't require further
 
             foreach ($helpers as $helper) {
-                $help = Registry::get('application')->helper($helper);
+                $help = $this->get('application')->helper($helper);
 
                 if (method_exists($help, 'beforeUpdate')) {
                     $res = $help->beforeUpdate($params, $details);
@@ -739,7 +739,7 @@ class Database
             unset($params['helper']); //we don't require further
 
             foreach ($helpers as $helper) {
-                $help = Registry::get('application')->helper($helper);
+                $help = $this->get('application')->helper($helper);
 
                 if (method_exists($help, 'beforeDelete')) {
                     $res = $help->beforeDelete($params);

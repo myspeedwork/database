@@ -12,6 +12,7 @@
     ],
     "require": {
         "php" : ">=5.4",
+        "speedwork/core" : "dev-master",
         "speedwork/util" : "dev-master"
     },
     "autoload" : {
