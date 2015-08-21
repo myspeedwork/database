@@ -8,12 +8,12 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database;
 
 use Exception;
-use Speedwork\Core\Registry;
-use Speedwork\Util\Pagination;
 use Speedwork\Core\Di;
+use Speedwork\Util\Pagination;
 
 /**
  * @author sankar <sankar.suda@gmail.com>
@@ -89,7 +89,7 @@ class Database extends Di
     public function reconnect($config = [])
     {
         $driver = ($config['driver']) ? $config['driver'] : 'mysql';
-        $db     = self::getInstance($driver);
+        $db     = $this->getInstance($driver);
         $db->disconnect();
 
         return $this->connect($config);
@@ -131,7 +131,7 @@ class Database extends Di
 
     public function fetchAssoc($sql, $cacheTime = 0, $name = '')
     {
-        $data = self::fetch($sql, $cacheTime, $name);
+        $data = $this->fetch($sql, $cacheTime, $name);
 
         return $data[0];
     }
@@ -244,7 +244,7 @@ class Database extends Di
             unset($params['limit']);
         }
 
-        $helpers = Registry::get('FindHelpers');
+        $helpers = $this->get('database.helpers.find');
 
         if ($helpers && is_array($helpers)) {
             $helpers = array_merge($helpers, (array) $params['helper']);
@@ -414,7 +414,7 @@ class Database extends Di
                     // Creates entry into parents array. Parents array contains a list of all items with children
                     $menuData['parents'][$menuItem[$params['field'][1]]][] = $menuItem[$params['field'][0]];
                 }
-                $return = self::buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
+                $return = $this->buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
                 break;
 
             case 'first':
@@ -480,7 +480,7 @@ class Database extends Di
                 }
                 $html .=  $hts;
                 if (isset($menuData['parents'][$itemId])) {
-                    $html .= self::buildThreaded($itemId, $menuData, $replace, $parentTag);
+                    $html .= $this->buildThreaded($itemId, $menuData, $replace, $parentTag);
                 }
                 $html .=  $end_tag;
             }
@@ -496,17 +496,17 @@ class Database extends Di
     public function paginate($table, $type = 'all', $params = [])
     {
         $pagingtype     = ($params['pagingtype']) ? $params['pagingtype'] : 'mixed';
-        $is_api_request = Registry::get('is_api_request');
+        $is_api_request = $this->get('is_api_request');
 
         if ($is_api_request) {
             $pagingtype = 'api';
         }
 
         $page = ($params['page'] && is_numeric($params['page']))
-                    ? $params['page']
-                    : !empty($_REQUEST['page']) && is_numeric($_REQUEST['page'])
-                    ? $_REQUEST['page']
-                    : 1;
+            ? $params['page']
+            : !empty($this->data['page']) && is_numeric($this->data['page'])
+            ? $this->data['page']
+            : 1;
 
         $limit = $params['limit'];
 
@@ -516,8 +516,8 @@ class Database extends Di
 
         $limit = ($limit && is_numeric($limit)) ? $limit : 25;
 
-        if (!empty($_REQUEST['limit']) && is_numeric($_REQUEST['limit'])) {
-            $limit = $_REQUEST['limit'];
+        if (!empty($this->data['limit']) && is_numeric($this->data['limit'])) {
+            $limit = $this->data['limit'];
         }
 
         $limit_start = $limit * ($page - 1);
@@ -532,7 +532,7 @@ class Database extends Di
             if (($pagingtype != 'ajax' && $pagingtype != 'mixed') ||
               (($pagingtype == 'ajax' || $pagingtype == 'mixed') &&
                $page == 1)) {
-                $total       = self::find($table, 'count', $params);
+                $total       = $this->find($table, 'count', $params);
                 $total_check = true;
             }
         }
@@ -541,7 +541,7 @@ class Database extends Di
         $params['page']  = $page;
 
         if ($runFind) {
-            $data = self::find($table, $type, $params);
+            $data = $this->find($table, $type, $params);
 
             if ($data['total']) {
                 $total = $data['total'];
@@ -560,10 +560,11 @@ class Database extends Di
         }
 
         $nowTotal = count($data);
-        $rtotal   = $_REQUEST['total'];
+        $rtotal   = $this->data['total'];
         $total    = ($total_check == true) ? $total : (($rtotal) ? $rtotal : $nowTotal);
 
-        $pagination = new Pagination($pagingtype);
+        $pagination = new Pagination();
+        $pagination->setType($pagingtype);
 
         $paging = $pagination->render($page, $total, $limit, $nowTotal);
 
@@ -588,7 +589,7 @@ class Database extends Di
         }
 
         //check is there any callback helper in this Query
-        $helpers = Registry::get('SaveHelpers');
+        $helpers = $this->get('database.helpers.save');
 
         if ($helpers && is_array($helpers)) {
             unset($params['helper']); //we don't require further
@@ -672,7 +673,7 @@ class Database extends Di
         $params['conditions'] = $conditions;
 
         //check is there any callback helper in this Query
-        $helpers = Registry::get('UpdateHelpers');
+        $helpers = $this->get('database.helpers.update');
 
         if ($helpers && is_array($helpers)) {
             unset($params['helper']); //we don't require further
@@ -728,7 +729,7 @@ class Database extends Di
         }
 
         //check is there any callback helper in this Query
-        $helpers = Registry::get('DeleteHelpers');
+        $helpers = $this->get('database.helpers.delete');
         if ($helpers && is_array($helpers)) {
             $helpers = array_merge($helpers, (array) $params['helper']);
         } else {
@@ -814,7 +815,7 @@ class Database extends Di
         if ($error) {
             $r .= "<span style = \"color:Red;\"><b>SQL Error:</b> {$error}</span>";
         }
-        $r .= '<b>Query:</b> '.$this->sql_query;
+        $r .= '<b>Query:</b> '.$this->query;
         $r .= '</p>';
 
         if ($echo) {
