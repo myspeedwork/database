@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database;
 
 use Speedwork\Util\Text;
@@ -386,11 +387,11 @@ class DboSource extends DataSource
                     $keys = array_keys($value);
                     if (array_keys($value) === array_values(array_keys($value))) {
                         $count = count($value);
-                        if ($count === 1) {
-                            $data = $this->__quoteFields($key).' = (';
-                        } else {
+                        //if ($count === 1) {
+                         //   $data = $this->__quoteFields($key).' = (';
+                        //} else {
                             $data = $this->__quoteFields($key).' IN (';
-                        }
+                        //}
                         if ($quoteValues || strpos($value[0], '-!') !== 0) {
                             if (is_object($model)) {
                                 $columnType = $model->getColumnType($key);
@@ -1055,74 +1056,6 @@ class DboSource extends DataSource
         }
 
         return false;
-    }
-
-    /**
-     * Log given SQL query.
-     *
-     * @param string $sql    SQL statement
-     * @param array  $params Values binded to the query (prepared statements)
-     */
-    public function logQuery($sql, $params = [])
-    {
-        ++$this->_queriesCnt;
-        $this->_queriesTime += $this->took;
-        $this->_queriesLog[] = [
-            'query'    => $sql,
-            'params'   => $params,
-            'affected' => $this->affected,
-            'numRows'  => $this->numRows,
-            'took'     => $this->took,
-        ];
-        if (count($this->_queriesLog) > $this->_queriesLogMax) {
-            array_pop($this->_queriesLog);
-        }
-    }
-
-    /**
-     * Get the query log as an array.
-     *
-     * @param bool $sorted Get the queries sorted by time taken, defaults to false.
-     * @param bool $clear  If True the existing log will cleared.
-     *
-     * @return array Array of queries run as an array
-     */
-    public function getLog($sorted = false, $clear = true)
-    {
-        if ($sorted) {
-            $log = sortByKey($this->_queriesLog, 'took', 'desc', SORT_NUMERIC);
-        } else {
-            $log = $this->_queriesLog;
-        }
-        if ($clear) {
-            $this->_queriesLog = [];
-        }
-
-        return ['log' => $log, 'count' => $this->_queriesCnt, 'time' => $this->_queriesTime];
-    }
-
-    /**
-     * Outputs the contents of the queries log. If in a non-CLI environment the sql_log element
-     * will be rendered and output.  If in a CLI environment, a plain text log is generated.
-     *
-     * @param bool $sorted Get the queries sorted by time taken, defaults to false.
-     */
-    public function showLog($sorted = false)
-    {
-        $log = $this->getLog($sorted, false);
-        if (empty($log['log'])) {
-            return;
-        }
-        if (PHP_SAPI != 'cli') {
-            $controller = null;
-            $View       = new View($controller, false);
-            $View->set('logs', [$this->configKeyName => $log]);
-            echo $View->element('sql_dump', ['_forced_from_dbo_' => true]);
-        } else {
-            foreach ($log['log'] as $k => $i) {
-                print(($k + 1).". {$i['query']}\n");
-            }
-        }
     }
 
     /**

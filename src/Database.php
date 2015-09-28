@@ -152,7 +152,7 @@ class Database extends Di
      */
     public function begin()
     {
-        return $this->self->rollback();
+        return $this->self->begin();
     }
 
     /**
@@ -166,7 +166,7 @@ class Database extends Di
      */
     public function commit()
     {
-        return $this->self->rollback();
+        return $this->self->commit();
     }
 
     /**
@@ -208,6 +208,11 @@ class Database extends Di
         return $this->self->insertId();
     }
 
+    public function lastInsertId()
+    {
+        return $this->self->insertId();
+    }
+
     public function affectedRows()
     {
         return $this->self->affectedRows();
@@ -245,36 +250,33 @@ class Database extends Di
         }
 
         $helpers = $this->get('database.helpers.find');
-
-        if ($helpers && is_array($helpers)) {
-            $helpers = array_merge($helpers, (array) $params['helper']);
-        } else {
-            $helpers = $params['helper'];
+        if (!is_array($helpers)) {
+            $helpers = [];
         }
 
-        if ($helpers && is_array($helpers)) {
-            unset($params['helper']); //we don't require further
+        if (is_array($params['helpers'])) {
+            $helpers = array_merge($helpers, $params['helpers']);
+        }
 
-            foreach ($helpers as $helper) {
-                $help = $this->application->helper($helper);
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
 
-                if (method_exists($help, 'beforeFind')) {
-                    $res = $help->beforeFind($params);
-                    if ($res === false) {
-                        return [];
-                    }
-                    //if stop further
-                    if ($params['stop'] === true) {
-                        break;
-                    }
-
-                    $return = $params['result'];
+            if ($help) {
+                $res = $help->beforeFind($params);
+                if ($res === false) {
+                    return [];
                 }
-            }
+                //if stop further
+                if ($params['stop'] === true) {
+                    break;
+                }
 
-            $type  = $params['type'];
-            $table = $params['table'];
+                $return = $params['result'];
+            }
         }
+
+        $type  = $params['type'];
+        $table = $params['table'];
 
         $params['table'] = $table;
         $params['type']  = $type;
@@ -318,37 +320,37 @@ class Database extends Di
                     $empty   = $params['empty'];
                     $replace = $params['replace'];
 
-                    $field1 = $fields[0];
-                    $field2 = $fields[1];
-                    $field3 = $fields[2];
+                    $value  = $fields[0];
+                    $option = $fields[1];
+                    $optgrp = $fields[2];
                     $res    = [];
                     foreach ($rows as $row) {
                         if (count($fields) == 1) {
-                            $res[$row[$field1]] = $row[$field1];
+                            $res[$row[$value]] = $row[$value];
                         } elseif (count($fields) == 2) {
-                            $res[$row[$field1]] = $row[$field2];
+                            $res[$row[$value]] = $row[$option];
                         } else {
                             if ($empty) {
                                 $v  = $empty[0];
                                 $re = $empty[1];
 
-                                if (!$row[$v] && $field2 == $re) {
-                                    $res[$row[$re]][$row[$field1]] = $row[$field2];
-                                } elseif (!$row[$v] && $field3 == $re) {
-                                    $res[$row[$field3]][$row[$field1]] = $row[$re];
+                                if (!$row[$v] && $option == $re) {
+                                    $res[$row[$re]][$row[$value]] = $row[$option];
+                                } elseif (!$row[$v] && $optgrp == $re) {
+                                    $res[$row[$optgrp]][$row[$value]] = $row[$re];
                                 } else {
-                                    $res[$row[$field3]][$row[$field1]] = $row[$field2];
+                                    $res[$row[$optgrp]][$row[$value]] = $row[$option];
                                 }
                             } else {
-                                $res[$row[$field3]][$row[$field1]] = $row[$field2];
+                                $res[$row[$optgrp]][$row[$value]] = $row[$option];
                             }
 
                             if ($replace) {
-                                $res[$row[$field2]][$row[$field1]] = $row[$field3];
+                                $res[$row[$option]][$row[$value]] = $row[$optgrp];
                             }
                         }
                     }
-                    unset($field1, $field2, $rows, $field3, $v, $re);
+                    unset($value, $option, $rows, $optgrp, $v, $re);
                     $return = &$res;
                 }
                 break;
@@ -435,12 +437,10 @@ class Database extends Di
         }
 
         //if method exists
-        if ($helpers && is_array($helpers)) {
-            foreach ($helpers as $helper) {
-                $help = $this->get('application')->helper($helper);
-                if (method_exists($help, 'afterFind')) {
-                    $return = $help->afterFind($return, $params);
-                }
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
+            if ($help && method_exists($help, 'afterFind')) {
+                $return = $help->afterFind($return, $params);
             }
         }
 
@@ -588,24 +588,26 @@ class Database extends Di
             return false;
         }
 
-        //check is there any callback helper in this Query
         $helpers = $this->get('database.helpers.save');
+        if (!is_array($helpers)) {
+            $helpers = [];
+        }
 
-        if ($helpers && is_array($helpers)) {
-            unset($params['helper']); //we don't require further
+        if (is_array($details['helpers'])) {
+            $helpers = array_merge($helpers, $details['helpers']);
+        }
 
-            foreach ($helpers as $helper) {
-                $help = $this->get('application')->helper($helper);
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
 
-                if (method_exists($help, 'beforeSave')) {
-                    $res = $help->beforeSave($data, $table, $details);
-                    if ($res === false) {
-                        return true;
-                    }
+            if ($help) {
+                $res = $help->beforeSave($data, $table, $details);
+                if ($res === false) {
+                    return true;
+                }
 
-                    if ($details['stop'] === true) {
-                        break;
-                    }
+                if ($details['stop'] === true) {
+                    break;
                 }
             }
         }
@@ -638,21 +640,6 @@ class Database extends Di
     }
 
     /**
-     * Alias function for save.
-     */
-    public function saveAll($table, &$data = [])
-    {
-        return $this->save($table, $data);
-    }
-
-    /**
-     * Alias function for save.
-     */
-    public function insert($table, $data = [])
-    {
-        return $this->save($table, $data);
-    }
-    /**
      * Update Table based on condition with data.
      *
      * @param string $table
@@ -674,25 +661,27 @@ class Database extends Di
 
         //check is there any callback helper in this Query
         $helpers = $this->get('database.helpers.update');
+        if (!is_array($helpers)) {
+            $helpers = [];
+        }
 
-        if ($helpers && is_array($helpers)) {
-            unset($params['helper']); //we don't require further
+        if (is_array($details['helpers'])) {
+            $helpers = array_merge($helpers, $details['helpers']);
+        }
 
-            foreach ($helpers as $helper) {
-                $help = $this->get('application')->helper($helper);
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
 
-                if (method_exists($help, 'beforeUpdate')) {
-                    $res = $help->beforeUpdate($params, $details);
-                    if ($res === false) {
-                        return true;
-                    }
+            if ($help) {
+                $res = $help->beforeUpdate($params, $details);
+                if ($res === false) {
+                    return true;
+                }
 
-                    if ($details['stop'] === true) {
-                        break;
-                    }
+                if ($details['stop'] === true) {
+                    break;
                 }
             }
-            $table = $params['table'];
         }
         //end of helpers
 
@@ -706,7 +695,7 @@ class Database extends Di
         }
         $params['fields'] = $k;
 
-        $query = $this->self->buildStatement($params, $table, 'update');
+        $query = $this->self->buildStatement($params, $params['table'], 'update');
 
         return $this->query($query);
     }
@@ -719,45 +708,42 @@ class Database extends Di
      *
      * @return bool
      **/
-    public function delete($table, $conditions = [], $limit = false)
+    public function delete($table, $conditions = [], $details = [])
     {
         $params               = [];
         $params['table']      = $table;
         $params['conditions'] = $conditions;
-        if ($limit) {
-            $params['limit'] = $limit;
+        if ($details['limit']) {
+            $params['limit'] = $details['limit'];
         }
 
         //check is there any callback helper in this Query
         $helpers = $this->get('database.helpers.delete');
-        if ($helpers && is_array($helpers)) {
-            $helpers = array_merge($helpers, (array) $params['helper']);
-        } else {
-            $helpers = $params['helper'];
+        if (!is_array($helpers)) {
+            $helpers = [];
         }
 
-        if ($helpers && is_array($helpers)) {
-            unset($params['helper']); //we don't require further
+        if (is_array($details['helpers'])) {
+            $helpers = array_merge($helpers, $details['helpers']);
+        }
 
-            foreach ($helpers as $helper) {
-                $help = $this->get('application')->helper($helper);
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
 
-                if (method_exists($help, 'beforeDelete')) {
-                    $res = $help->beforeDelete($params);
-                    if ($res === false) {
-                        return true;
-                    }
+            if ($help) {
+                $res = $help->beforeDelete($params);
+                if ($res === false) {
+                    return true;
+                }
 
-                    if ($params['stop'] === true) {
-                        break;
-                    }
+                if ($params['stop'] === true) {
+                    break;
                 }
             }
-            $table = $params['table'];
         }
         //end of helpers
 
-        $query = $this->self->buildStatement($params, $table, 'delete');
+        $query = $this->self->buildStatement($params, $params['table'], 'delete');
 
         return $this->query($query);
     }
