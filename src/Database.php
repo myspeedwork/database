@@ -369,12 +369,14 @@ class Database extends Di
                 }
 
                 if (!is_array($params['conditions'])) {
-                    $params['conditions'] = [];
+                    $conditions = [];
+                } else {
+                    $conditions = $params['conditions'];
                 }
 
                 //build first query
                 $params['order']      = [$field.' DESC'];
-                $params['conditions'] = array_merge([$field.' < ' => $value], $params['conditions']);
+                $params['conditions'] = array_merge([$field.' < ' => $value], $conditions);
 
                 $query = $this->self->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
@@ -383,7 +385,7 @@ class Database extends Di
 
                 //build second query
                 $params['order']      = [$field];
-                $params['conditions'] = array_merge([$field.' > ' => $value], $params['conditions']);
+                $params['conditions'] = array_merge([$field.' > ' => $value], $conditions);
 
                 $query = $this->self->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
@@ -698,6 +700,18 @@ class Database extends Di
         $query = $this->self->buildStatement($params, $params['table'], 'update');
 
         return $this->query($query);
+    }
+
+    public function cascade($table, $data = [], $conditions = [], $details = [])
+    {
+        $rows = $this->find($table, 'count');
+        if ($rows > 0) {
+            return $this->update($table, $data, $conditions, $details);
+        }
+
+        if (count(array_filter($data))) {
+            return $this->save($table, $data, $details);
+        }
     }
 
     /**
