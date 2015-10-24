@@ -704,7 +704,10 @@ class Database extends Di
 
     public function cascade($table, $data = [], $conditions = [], $details = [])
     {
-        $rows = $this->find($table, 'count');
+        $rows = $this->find($table, 'count', [
+          'conditions' => $conditions,
+        ]);
+
         if ($rows > 0) {
             return $this->update($table, $data, $conditions, $details);
         }
