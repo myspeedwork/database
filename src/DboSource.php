@@ -11,7 +11,7 @@
 
 namespace Speedwork\Database;
 
-use Speedwork\Util\Text;
+use Speedwork\Util\Str;
 
 /**
  * @author sankar <sankar.suda@gmail.com>
@@ -129,7 +129,7 @@ class DboSource extends DataSource
     ];
 
     /**
-     * Builds and generates an SQL statement from an array.	 Handles final clean-up before conversion.
+     * Builds and generates an SQL statement from an array.  Handles final clean-up before conversion.
      *
      * @param array  $query An array defining an SQL query
      * @param object $model The model object which initiated the query
@@ -154,7 +154,7 @@ class DboSource extends DataSource
         //$query['values'] = $this->value($query['values']);
 
         return $this->renderStatement($type, [
-            'conditions' => $this->conditions($query['conditions'], true, true, $model),
+            'conditions' => $this->conditions($query['conditions'], true, true),
             'fields'     => (count($query['fields']) > 0) ? @implode(', ', $query['fields']) : ' * ',
             'values'     => (count($query['values']) > 0) ? @implode(', ', $query['values']) : '',
             'table'      => $table,
@@ -188,7 +188,7 @@ class DboSource extends DataSource
     }
 
     /**
-     * Builds and generates a JOIN statement from an array.	 Handles final clean-up before conversion.
+     * Builds and generates a JOIN statement from an array.  Handles final clean-up before conversion.
      *
      * @param array $join An array defining a JOIN statement in a query
      *
@@ -476,7 +476,7 @@ class DboSource extends DataSource
         }
 
         if ($bound) {
-            return Text::insert($key.' '.trim($operator), $value);
+            return Str::insert($key.' '.trim($operator), $value);
         }
 
         if (!preg_match($operatorMatch, trim($operator))) {
@@ -490,24 +490,24 @@ class DboSource extends DataSource
             switch ($operator) {
                 case '=':
                     $operator = 'IN';
-                break;
+                    break;
                 case '!=':
                 case '<>':
                     $operator = 'NOT IN';
-                break;
+                    break;
             }
             $value = "({$value})";
         } elseif ($null || $value === 'NULL') {
             switch ($operator) {
                 case '=':
                     $operator = 'IS';
-                break;
+                    break;
                 case '!=':
                 case '<>':
                     $operator = 'IS NOT';
-                break;
+                    break;
             }
-            $value = "''";
+            $value = 'NULL';
         }
 
         return "{$key} {$operator} {$value}";

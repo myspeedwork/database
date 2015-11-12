@@ -534,7 +534,8 @@ class Database extends Di
             if (($pagingtype != 'ajax' && $pagingtype != 'mixed') ||
               (($pagingtype == 'ajax' || $pagingtype == 'mixed') &&
                $page == 1)) {
-                $total       = $this->find($table, 'count', $params);
+                $total = $this->find($table, 'count', $params);
+
                 $total_check = true;
             }
         }
@@ -568,12 +569,13 @@ class Database extends Di
         $pagination = new Pagination();
         $pagination->setType($pagingtype);
 
-        $paging = $pagination->render($page, $total, $limit, $nowTotal);
+        $respose           = [];
+        $respose['total']  = $total;
+        $respose['extra']  = $extra;
+        $respose['data']   = $data;
+        $respose['paging'] = $pagination->render($page, $total, $limit, $nowTotal);
 
-        $paging['extra'] = $extra;
-        $paging['data']  = $data;
-
-        return $paging;
+        return $respose;
     }
 
     /**
