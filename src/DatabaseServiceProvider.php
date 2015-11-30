@@ -10,7 +10,7 @@ use Speedwork\Container\ServiceProvider;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class FormServiceProvider extends ServiceProvider
+class DatabaseServiceProvider extends ServiceProvider
 {
     public function register(Container $di)
     {
