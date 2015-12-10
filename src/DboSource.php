@@ -923,37 +923,6 @@ class DboSource extends DataSource
     }
 
     /**
-     * Queries the database with given SQL statement, and obtains some metadata about the result
-     * (rows affected, timing, any errors, number of rows in resultset). The query is also logged.
-     * If Configure::read('debug') is set, the log is shown all the time, else it is only shown on errors.
-     *
-     * ### Options
-     *
-     * - log - Whether or not the query should be logged to the memory log.
-     *
-     * @param string $sql     SQL statement
-     * @param array  $options
-     * @param array  $params  values to be bound to the query
-     *
-     * @return mixed Resource or object representing the result set, or false on failure
-     */
-    public function query($sql, $options = [], $params = [])
-    {
-        $options += ['log' => $this->fullDebug];
-
-        $t             = microtime(true);
-        $this->_result = $this->_execute($sql, $params);
-
-        if ($options['log']) {
-            $this->took    = round((microtime(true) - $t) * 1000, 0);
-            $this->numRows = $this->affected = $this->lastAffected();
-            $this->logQuery($sql, $params);
-        }
-
-        return $this->_result;
-    }
-
-    /**
      * Deletes all the records in a table and resets the count of the auto-incrementing
      * primary key, where applicable.
      *
