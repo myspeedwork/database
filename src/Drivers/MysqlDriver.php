@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database\Drivers;
 
 use Speedwork\Database\DboSource;
@@ -50,7 +51,7 @@ class MysqlDriver extends DboSource
         'password'   => '',
         'database'   => 'logics',
         'port'       => '3306',
-        'encoding'   => '',
+        'charset'    => '',
         'timezome'   => '',
     ];
 
@@ -81,8 +82,8 @@ class MysqlDriver extends DboSource
             $this->connected = true;
         }
 
-        if (!empty($config['encoding'])) {
-            $this->setEncoding($config['encoding']);
+        if (!empty($config['charset'])) {
+            $this->setEncoding($config['charset']);
         }
 
         if (!empty($config['timezone'])) {

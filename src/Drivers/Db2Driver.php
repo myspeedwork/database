@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database\Drivers;
 
 use Speedwork\Database\DboSource;
@@ -47,7 +48,7 @@ class Db2Driver  extends DboSource
         'database'   => 'logics',
         'schema'     => 'public',
         'port'       => 50000,
-        'encoding'   => '',
+        'charset'    => '',
     ];
 
     /**
@@ -74,8 +75,8 @@ class Db2Driver  extends DboSource
             $this->connected = true;
             $this->query('SET search_path TO '.$config['schema']);
         }
-        if (!empty($config['encoding'])) {
-            $this->setEncoding($config['encoding']);
+        if (!empty($config['charset'])) {
+            $this->setEncoding($config['charset']);
         }
 
         return $this->connection;

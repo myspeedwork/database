@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database\Drivers;
 
 use Speedwork\Database\DboSource;
@@ -47,7 +48,7 @@ class PgsqlDriver extends DboSource
         'database'   => 'logics',
         'schema'     => 'public',
         'port'       => 5432,
-        'encoding'   => '',
+        'charset'    => '',
     ];
 
     /**
@@ -85,8 +86,8 @@ class PgsqlDriver extends DboSource
             $this->connected = true;
             $this->query('SET search_path TO '.$config['schema']);
         }
-        if (!empty($config['encoding'])) {
-            $this->setEncoding($config['encoding']);
+        if (!empty($config['charset'])) {
+            $this->setEncoding($config['charset']);
         }
 
         return $this->connection;

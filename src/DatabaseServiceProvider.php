@@ -38,7 +38,7 @@ class DatabaseServiceProvider extends ServiceProvider
         };
     }
 
-    protected function getConfig($name)
+    protected function getConfig($name = null)
     {
         $name = $name ?: $this->getDefaultConnection();
 
@@ -46,7 +46,8 @@ class DatabaseServiceProvider extends ServiceProvider
         // connection configurations and get the configurations for the given name.
         // If the configuration doesn't exist, we'll throw an exception and bail.
         $connections = ($this->app['database.connections']) ?: $this->app['config']['database.connections'];
-        $config      = $connections[$name];
+
+        $config = $connections[$name];
 
         if (is_null($config)) {
             throw new InvalidArgumentException("Database [$name] not configured.");
