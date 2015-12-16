@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database\Drivers;
 
 use Speedwork\Database\DboSource;
@@ -91,7 +92,7 @@ class OracleDriver  extends DboSource
     public $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
-        'login'      => 'system',
+        'username'   => 'system',
         'password'   => '',
         'database'   => '',
         'nls_sort'   => '',
@@ -118,9 +119,9 @@ class OracleDriver  extends DboSource
         $config['charset'] = !empty($config['charset']) ? $config['charset'] : null;
 
         if (!$config['persistent']) {
-            $this->connection = @ocilogon($config['login'], $config['password'], $config['database'], $config['charset']);
+            $this->connection = @ocilogon($config['username'], $config['password'], $config['database'], $config['charset']);
         } else {
-            $this->connection = @ociplogon($config['login'], $config['password'], $config['database'], $config['charset']);
+            $this->connection = @ociplogon($config['username'], $config['password'], $config['database'], $config['charset']);
         }
 
         if ($this->connection) {

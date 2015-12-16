@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database\Drivers;
 
 use Speedwork\Database\DboSource;
@@ -42,7 +43,7 @@ class MssqlDriver  extends DboSource
     public $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
-        'login'      => 'root',
+        'username'   => 'root',
         'password'   => '',
         'database'   => 'logics',
         'port'       => '1433',
@@ -93,9 +94,9 @@ class MssqlDriver  extends DboSource
         }
 
         if (!$config['persistent']) {
-            $this->connection = mssql_connect($config['host'].$port, $config['login'], $config['password'], true);
+            $this->connection = mssql_connect($config['host'].$port, $config['username'], $config['password'], true);
         } else {
-            $this->connection = mssql_pconnect($config['host'].$port, $config['login'], $config['password']);
+            $this->connection = mssql_pconnect($config['host'].$port, $config['username'], $config['password']);
         }
 
         if (mssql_select_db($config['database'], $this->connection)) {

@@ -47,7 +47,7 @@ class MysqlDriver extends DboSource
     public $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
-        'login'      => 'root',
+        'username'   => 'root',
         'password'   => '',
         'database'   => 'logics',
         'port'       => '3306',
@@ -68,10 +68,10 @@ class MysqlDriver extends DboSource
         $this->connected = false;
 
         if (!$config['persistent']) {
-            $this->connection  = @mysql_connect($config['host'], $config['login'], $config['password'], true);
+            $this->connection  = @mysql_connect($config['host'], $config['username'], $config['password'], true);
             $config['connect'] = 'mysql_connect';
         } else {
-            $this->connection = @mysql_pconnect($config['host'].':'.$config['port'], $config['login'], $config['password']);
+            $this->connection = @mysql_pconnect($config['host'].':'.$config['port'], $config['username'], $config['password']);
         }
 
         if (!$this->connection) {

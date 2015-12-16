@@ -43,7 +43,7 @@ class PgsqlDriver extends DboSource
     public $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
-        'login'      => 'root',
+        'username'   => 'root',
         'password'   => '',
         'database'   => 'logics',
         'schema'     => 'public',
@@ -73,7 +73,7 @@ class PgsqlDriver extends DboSource
         $config = array_merge($this->_baseConfig, $config);
 
         $conn = "host='{$config['host']}' port='{$config['port']}' dbname='{$config['database']}' ";
-        $conn .= "user='{$config['login']}' password='{$config['password']}'";
+        $conn .= "user='{$config['username']}' password='{$config['password']}'";
 
         if (!$config['persistent']) {
             $this->connection = pg_connect($conn, PGSQL_CONNECT_FORCE_NEW);

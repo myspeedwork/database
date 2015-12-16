@@ -43,7 +43,7 @@ class Db2Driver  extends DboSource
     public $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
-        'login'      => 'root',
+        'username'   => 'root',
         'password'   => '',
         'database'   => 'logics',
         'schema'     => 'public',
@@ -62,7 +62,7 @@ class Db2Driver  extends DboSource
         $config = array_merge($this->_baseConfig, $config);
 
         $conn = "DATABASE='{$config['database']}';HOSTNAME='{$config['host']}';PORT={$config['port']};";
-        $conn .= "PROTOCOL=TCPIP;UID={$config['login']};PWD={$config['password']};";
+        $conn .= "PROTOCOL=TCPIP;UID={$config['username']};PWD={$config['password']};";
 
         if (!$config['persistent']) {
             $this->connection = db2_connect($conn, PGSQL_CONNECT_FORCE_NEW);

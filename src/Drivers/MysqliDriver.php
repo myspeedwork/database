@@ -50,7 +50,7 @@ class MysqliDriver extends DboSource
     public $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
-        'login'      => 'root',
+        'username'   => 'root',
         'password'   => '',
         'database'   => 'logics',
         'port'       => '3306',
@@ -77,7 +77,7 @@ class MysqliDriver extends DboSource
             $config['port']   = null;
         }
 
-        $this->connection = @mysqli_connect($config['host'], $config['login'], $config['password'], $config['database'], $config['port'], $config['socket']);
+        $this->connection = @mysqli_connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $config['socket']);
 
         if ($this->connection !== false) {
             $this->connected = true;
