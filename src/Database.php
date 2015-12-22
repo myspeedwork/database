@@ -249,7 +249,7 @@ class Database extends Di
             unset($params['limit']);
         }
 
-        $helpers = $this->get('database.helpers.find');
+        $helpers = config('database.helpers.find');
         if (!is_array($helpers)) {
             $helpers = [];
         }
@@ -592,7 +592,7 @@ class Database extends Di
             return false;
         }
 
-        $helpers = $this->get('database.helpers.save');
+        $helpers = config('database.helpers.save');
         if (!is_array($helpers)) {
             $helpers = [];
         }
@@ -664,7 +664,7 @@ class Database extends Di
         $params['conditions'] = $conditions;
 
         //check is there any callback helper in this Query
-        $helpers = $this->get('database.helpers.update');
+        $helpers = config('database.helpers.update');
         if (!is_array($helpers)) {
             $helpers = [];
         }
@@ -737,7 +737,7 @@ class Database extends Di
         }
 
         //check is there any callback helper in this Query
-        $helpers = $this->get('database.helpers.delete');
+        $helpers = config('database.helpers.delete');
         if (!is_array($helpers)) {
             $helpers = [];
         }
