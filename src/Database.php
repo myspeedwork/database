@@ -239,6 +239,10 @@ class Database extends Di
      **/
     public function find($table, $type = 'first', $params = [])
     {
+        if (is_array($table)) {
+            return $this->findTables($table, $type, $params);
+        }
+
         $cache      = ($params['cache']) ? $params['cache'] : '';
         $cache_name = ($params['cache_name']) ? $params['cache_name'] : '';
 
@@ -295,6 +299,7 @@ class Database extends Di
                 $return = intval($data[0]['total']);
                 unset($data);
                 break;
+
             case 'all':
                 $query  = $this->self->buildStatement($params, $table);
                 $return = $this->fetch($query, $cache, $cache_name);
@@ -406,11 +411,12 @@ class Database extends Di
             case 'threaded':
 
                 if (!$params['field']) {
-                    trace(2, 'field not found');
+                    throw new Exception('field not found');
                 }
 
-                $query    = $this->self->buildStatement($params, $table);
-                $data     = $this->fetch($query, $cache, $cache_name);
+                $query = $this->self->buildStatement($params, $table);
+                $data  = $this->fetch($query, $cache, $cache_name);
+
                 $menuData = ['items' => [],'parents' => []];
                 foreach ($data as $menuItem) {
                     // Creates entry into items array with current menu item id ie. $menuData['items'][1]
@@ -427,14 +433,15 @@ class Database extends Di
                 $return          = $this->fetch($query, $cache, $cache_name);
                 $return          = $return[0];
                 break;
+
             case 'field':
                 $query  = $this->self->buildStatement($params, $table);
-                $d      = $this->fetch($query, $cache, $cache_name);
+                $rows   = $this->fetch($query, $cache, $cache_name);
                 $return = [];
-                foreach ($d as $key => $v) {
+                foreach ($rows as $key => $v) {
                     $return[$key][] = $v;
                 }
-                unset($d);
+                unset($rows);
                 break;
         }
 
@@ -492,16 +499,73 @@ class Database extends Di
         return $html;
     }
 
+    public function findTables($tables = [], $type = 'all', $params = [])
+    {
+        if ($type == 'count') {
+            $total = 0;
+
+            foreach ($tables as $table) {
+                $total += $this->find($table, $type, $params);
+            }
+
+            return $total;
+        }
+
+        if ($type == 'first') {
+            foreach ($tables as $table) {
+                $rows = $this->find($table, $type, $params);
+                if (!empty($rows)) {
+                    return $rows;
+                }
+            }
+        }
+
+        if ($type == 'all') {
+            $total = 0;
+            $data  = [];
+            $limit = $params['limit'];
+
+            foreach ($tables as $table) {
+                $rows = $this->find($table, 'all', $params);
+
+                $data = array_merge($data, $rows);
+
+                if ($limit) {
+                    $total += count($rows);
+
+                    if ($total >= $limit) {
+                        break;
+                    } else {
+                        // get remaings results from other tables
+                        $params['limit'] = $limit - $total;
+                    }
+                }
+            }
+
+            unset($rows);
+
+            return $data;
+        }
+
+        return $this->find($table, $type, $params);
+    }
+
     /**
      * paginate.
      */
-    public function paginate($table, $type = 'all', $params = [])
+    public function paginate($tables, $type = 'all', $params = [])
     {
-        $pagingtype     = ($params['pagingtype']) ? $params['pagingtype'] : 'mixed';
+        if (is_array($type)) {
+            $params = $type;
+        }
+
+        $paging = $params['paging'] ?: $params['pagingtype'];
+        $paging = $paging ?: 'mixed';
+
         $is_api_request = $this->get('is_api_request');
 
         if ($is_api_request) {
-            $pagingtype = 'api';
+            $paging = 'api';
         }
 
         $page = ($params['page'] && is_numeric($params['page']))
@@ -524,54 +588,69 @@ class Database extends Di
 
         $limit_start = $limit * ($page - 1);
 
-        $runFind     = true;
-        $total_check = false;
-
-        if ($params['total']) {
-            $total       = $params['total'];
-            $total_check = true;
-        } else {
-            if (($pagingtype != 'ajax' && $pagingtype != 'mixed') ||
-              (($pagingtype == 'ajax' || $pagingtype == 'mixed') &&
-               $page == 1)) {
-                $total = $this->find($table, 'count', $params);
-
-                $total_check = true;
-            }
-        }
-
         $params['limit'] = $limit;
         $params['page']  = $page;
 
-        if ($runFind) {
-            $data = $this->find($table, $type, $params);
+        $hasTotal = false;
+        $total    = 0;
+        $nowTotal = 0;
+        $data     = [];
 
-            if ($data['total']) {
-                $total = $data['total'];
-                $extra = $data['extra'];
-                $data  = $data['data'];
-            }
-
-            $i = $limit_start;
-            if (is_array($data)) {
-                foreach ($data as &$row) {
-                    $row['serial'] = ++$i;
-                }
-            }
-        } else {
-            $data = [];
+        if (!is_array($tables)) {
+            $tables = [$tables];
         }
 
-        $nowTotal = count($data);
-        $rtotal   = $this->data['total'];
-        $total    = ($total_check == true) ? $total : (($rtotal) ? $rtotal : $nowTotal);
+        if ($params['total']) {
+            $total    = $params['total'];
+            $hasTotal = true;
+        } else {
+            if (($paging != 'scroll' && $paging != 'mixed') ||
+              (($paging == 'scroll' || $paging == 'mixed') &&
+               $page == 1)) {
+                foreach ($tables as $table) {
+                    $total += $this->find($table, 'count', $params);
+                }
+
+                $hasTotal = true;
+            }
+        }
+
+        foreach ($tables as $table) {
+            $rows = $this->find($table, 'all', $params);
+
+            if ($nowTotal) {
+                $data = array_merge($data, $rows);
+            } else {
+                $data = $rows;
+            }
+
+            $nowTotal += count($rows);
+
+            if ($nowTotal >= $limit) {
+                break;
+            } else {
+                // get remaings results from other tables
+                $params['limit'] = $limit - $nowTotal;
+            }
+        }
+
+        unset($rows);
+
+        $i = $limit_start;
+        if (is_array($data)) {
+            foreach ($data as &$row) {
+                $row['serial'] = ++$i;
+            }
+        }
+
+        $total = ($hasTotal) ? $total : $this->data['total'];
+        $total = $total ?: $nowTotal;
 
         $pagination = new Pagination();
-        $pagination->setType($pagingtype);
+        $pagination->setType($paging);
 
         $respose           = [];
         $respose['total']  = $total;
-        $respose['extra']  = $extra;
         $respose['data']   = $data;
         $respose['paging'] = $pagination->render($page, $total, $limit, $nowTotal);
 
