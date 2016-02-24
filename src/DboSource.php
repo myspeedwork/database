@@ -311,7 +311,7 @@ class DboSource extends DataSource
         if (trim($conditions) == '') {
             $conditions = ' 1 = 1';
         } else {
-            $conditions = $this->__quoteFields($conditions);
+            $conditions = $this->quoteFields($conditions);
         }
 
         return $clause.$conditions;
@@ -347,7 +347,7 @@ class DboSource extends DataSource
             if (is_numeric($key) && empty($value)) {
                 continue;
             } elseif (is_numeric($key) && is_string($value)) {
-                $out[] = $not.$this->__quoteFields($value);
+                $out[] = $not.$this->quoteFields($value);
             } elseif ((is_numeric($key) && is_array($value)) || in_array(strtolower(trim($key)), $bool)) {
                 if (in_array(strtolower(trim($key)), $bool)) {
                     $join = ' '.strtoupper($key).' ';
@@ -388,9 +388,9 @@ class DboSource extends DataSource
                     if (array_keys($value) === array_values(array_keys($value))) {
                         $count = count($value);
                         //if ($count === 1) {
-                         //   $data = $this->__quoteFields($key).' = (';
+                         //   $data = $this->quoteFields($key).' = (';
                         //} else {
-                            $data = $this->__quoteFields($key).' IN (';
+                            $data = $this->quoteFields($key).' IN (';
                         //}
                         if ($quoteValues || strpos($value[0], '-!') !== 0) {
                             if (is_object($model)) {
@@ -408,9 +408,9 @@ class DboSource extends DataSource
                         }
                     }
                 } elseif (is_numeric($key) && !empty($value)) {
-                    $data = $this->__quoteFields($value);
+                    $data = $this->quoteFields($value);
                 } else {
-                    $data = $this->__parseKey($model, trim($key), $value);
+                    $data = $this->parseKey($model, trim($key), $value);
                 }
 
                 if ($data != null) {
@@ -437,7 +437,7 @@ class DboSource extends DataSource
      *
      * @return string
      */
-    public function __parseKey($model, $key, $value)
+    protected function parseKey($model, $key, $value)
     {
         $operatorMatch = '/^(('.implode(')|(', $this->__sqlOps);
         $operatorMatch .= '\\x20)|<[>=]?(?![^>]+>)\\x20?|[>=!]{1,3}(?!<)\\x20?)/is';
@@ -472,7 +472,7 @@ class DboSource extends DataSource
 
         if ($key !== '?') {
             $isKey = (strpos($key, '(') !== false || strpos($key, ')') !== false);
-            $key   = $isKey ? $this->__quoteFields($key) : $this->name($key);
+            $key   = $isKey ? $this->quoteFields($key) : $this->name($key);
         }
 
         if ($bound) {
@@ -519,7 +519,7 @@ class DboSource extends DataSource
      *
      * @return string or false if no match
      */
-    public function __quoteFields($conditions)
+    protected function quoteFields($conditions)
     {
         $start    = $end    = null;
         $original = $conditions;
@@ -665,7 +665,7 @@ class DboSource extends DataSource
                 $group = implode(', ', $group);
             }
 
-            return ' GROUP BY '.$this->__quoteFields($group);
+            return ' GROUP BY '.$this->quoteFields($group);
         }
 
         return;

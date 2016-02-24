@@ -275,7 +275,7 @@ class Database extends Di
                     break;
                 }
 
-                $return = $params['result'];
+                $results = $params['result'];
             }
         }
 
@@ -295,14 +295,14 @@ class Database extends Di
                 if ($params['group']) {
                     $query = 'SELECT COUNT(*) AS total FROM ('.$query.') as tmp';
                 }
-                $data   = $this->fetch($query, $cache, $cache_name);
-                $return = intval($data[0]['total']);
+                $data    = $this->fetch($query, $cache, $cache_name);
+                $results = intval($data[0]['total']);
                 unset($data);
                 break;
 
             case 'all':
-                $query  = $this->self->buildStatement($params, $table);
-                $return = $this->fetch($query, $cache, $cache_name);
+                $query   = $this->self->buildStatement($params, $table);
+                $results = $this->fetch($query, $cache, $cache_name);
                 break;
             /*
              * array('fields' => array('value','group','title'),
@@ -320,7 +320,7 @@ class Database extends Di
                 }
 
                 if (count($fields) == 0) {
-                    $return = &$rows;
+                    $results = &$rows;
                 } else {
                     $empty   = $params['empty'];
                     $replace = $params['replace'];
@@ -356,7 +356,7 @@ class Database extends Di
                         }
                     }
                     unset($value, $option, $rows, $optgrp, $v, $re);
-                    $return = &$res;
+                    $results = &$res;
                 }
                 break;
             /*
@@ -386,7 +386,7 @@ class Database extends Di
                 $query = $this->self->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
 
-                $return['prev'] = ($params['limit']) ? $data[0] : $data;
+                $results['prev'] = ($params['limit']) ? $data[0] : $data;
 
                 //build second query
                 $params['order']      = [$field];
@@ -395,7 +395,7 @@ class Database extends Di
                 $query = $this->self->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
 
-                $return['next'] = ($params['limit']) ? $data[0] : $data;
+                $results['next'] = ($params['limit']) ? $data[0] : $data;
 
                 break;
             /*
@@ -424,22 +424,22 @@ class Database extends Di
                     // Creates entry into parents array. Parents array contains a list of all items with children
                     $menuData['parents'][$menuItem[$params['field'][1]]][] = $menuItem[$params['field'][0]];
                 }
-                $return = $this->buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
+                $results = $this->buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
                 break;
 
             case 'first':
                 $params['limit'] = 1;
                 $query           = $this->self->buildStatement($params, $table);
-                $return          = $this->fetch($query, $cache, $cache_name);
-                $return          = $return[0];
+                $results         = $this->fetch($query, $cache, $cache_name);
+                $results         = $results[0];
                 break;
 
             case 'field':
-                $query  = $this->self->buildStatement($params, $table);
-                $rows   = $this->fetch($query, $cache, $cache_name);
-                $return = [];
+                $query   = $this->self->buildStatement($params, $table);
+                $rows    = $this->fetch($query, $cache, $cache_name);
+                $results = [];
                 foreach ($rows as $key => $v) {
-                    $return[$key][] = $v;
+                    $results[$key][] = $v;
                 }
                 unset($rows);
                 break;
@@ -449,11 +449,11 @@ class Database extends Di
         foreach ($helpers as $helper) {
             $help = $this->get('resolver')->helper($helper);
             if ($help && method_exists($help, 'afterFind')) {
-                $return = $help->afterFind($return, $params);
+                $results = $help->afterFind($results, $params);
             }
         }
 
-        return $return;
+        return $results;
     }
 
     /*
@@ -717,9 +717,20 @@ class Database extends Di
         $params['table']  = $table;
         $params['fields'] = $k;
         $params['values'] = $v;
-        $query            = $this->self->buildStatement($params, $table, 'insert');
 
-        return $this->query($query);
+        $query = $this->self->buildStatement($params, $table, 'insert');
+
+        $results = $this->query($query);
+
+        //if method exists
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
+            if ($help && method_exists($help, 'afterSave')) {
+                $results = $help->afterSave($results, $params, $details, $query);
+            }
+        }
+
+        return $results;
     }
 
     /**
@@ -780,7 +791,16 @@ class Database extends Di
 
         $query = $this->self->buildStatement($params, $params['table'], 'update');
 
-        return $this->query($query);
+        $results = $this->query($query);
+
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
+            if ($help && method_exists($help, 'afterUpdate')) {
+                $results = $help->afterUpdate($results, $params, $details, $query);
+            }
+        }
+
+        return $results;
     }
 
     public function cascade($table, $data = [], $conditions = [], $details = [])
@@ -829,7 +849,7 @@ class Database extends Di
             $help = $this->get('resolver')->helper($helper);
 
             if ($help) {
-                $res = $help->beforeDelete($params);
+                $res = $help->beforeDelete($params, $details);
                 if ($res === false) {
                     return true;
                 }
@@ -843,7 +863,16 @@ class Database extends Di
 
         $query = $this->self->buildStatement($params, $params['table'], 'delete');
 
-        return $this->query($query);
+        $results = $this->query($query);
+
+        foreach ($helpers as $helper) {
+            $help = $this->get('resolver')->helper($helper);
+            if ($help && method_exists($help, 'afterDelete')) {
+                $results = $help->afterDelete($results, $params, $details, $query);
+            }
+        }
+
+        return $results;
     }
 
     /**
@@ -859,7 +888,7 @@ class Database extends Di
         return $this->query('TRUNCATE TABLE '.$table);
     }
 
-    public function securesql($value)
+    public function secureSql($value)
     {
         return $this->self->securesql($value);
     }
