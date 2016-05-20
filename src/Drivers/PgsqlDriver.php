@@ -37,7 +37,7 @@ class PgsqlDriver extends DboSource
      *
      * @var array
      */
-    protected $_baseConfig = [
+    protected $baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
         'username'   => 'root',
@@ -53,21 +53,27 @@ class PgsqlDriver extends DboSource
      *
      * @var array
      */
-    protected $_commands = [
+    protected $commands = [
         'begin'    => 'BEGIN',
         'commit'   => 'COMMIT',
         'rollback' => 'ROLLBACK',
     ];
 
     /**
-     * Connects to the database using options in the given configuration array.
-     *
-     * @return bool True if the database could be connected, else false
+     * {@inheritdoc}
+     */
+    public function enabled()
+    {
+        return extension_loaded('pgsql');
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function connect()
     {
         $config = $this->config;
-        $config = array_merge($this->_baseConfig, $config);
+        $config = array_merge($this->baseConfig, $config);
 
         $conn = "host='{$config['host']}' port='{$config['port']}' dbname='{$config['database']}' ";
         $conn .= "user='{$config['username']}' password='{$config['password']}'";
@@ -84,31 +90,19 @@ class PgsqlDriver extends DboSource
             $this->query('SET search_path TO '.$config['schema']);
         }
         if (!empty($config['charset'])) {
-            $this->setEncoding($config['charset']);
+            $this->setCharset($config['charset']);
         }
 
         return $this->connection;
     }
 
     /**
-     * Check whether the MySQL extension is installed/loaded.
-     *
-     * @return bool
+     * {@inheritdoc}
      */
-    public function enabled()
+    public function disConnect()
     {
-        return extension_loaded('pgsql');
-    }
-
-    /**
-     * Disconnects from database.
-     *
-     * @return bool True if the database could be disconnected, else false
-     */
-    public function disconnect()
-    {
-        if ($this->_result) {
-            pg_free_result($this->_result);
+        if ($this->result) {
+            pg_free_result($this->result);
         }
         if (is_resource($this->connection)) {
             $this->connected = !pg_close($this->connection);
@@ -119,33 +113,8 @@ class PgsqlDriver extends DboSource
         return !$this->connected;
     }
 
-    public function fetch($sql)
-    {
-        $data          = [];
-        $this->_result = pg_query($this->connection, $sql);
-        $data          = pg_fetch_all($this->_result);
-
-        return $data;
-    }
-
     /**
-     * Returns a formatted error message from previous database operation.
-     *
-     * @return string Error message with error number
-     */
-    public function error()
-    {
-        $error = pg_last_error($this->connection);
-
-        return ($error) ? $error : null;
-    }
-
-    /**
-     * Executes given SQL statement.
-     *
-     * @param string $sql SQL statement
-     *
-     * @return resource Result resource identifier
+     * {@inheritdoc}
      */
     public function query($sql)
     {
@@ -153,11 +122,29 @@ class PgsqlDriver extends DboSource
     }
 
     /**
-     * Returns the ID generated from the previous INSERT operation.
-     *
-     * @param unknown_type $source
-     *
-     * @return in
+     * {@inheritdoc}
+     */
+    public function fetch($sql)
+    {
+        $this->result = $this->query($sql);
+
+        $data = pg_fetch_all($this->result);
+
+        return $data;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function lastError()
+    {
+        $error = pg_last_error($this->connection);
+
+        return ($error) ? $error : null;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function lastInsertId()
     {
@@ -165,54 +152,39 @@ class PgsqlDriver extends DboSource
     }
 
     /**
-     * Returns number of affected rows in previous database operation. If no previous operation exists,
-     * this returns false.
-     *
-     * @return int Number of affected rows
+     * {@inheritdoc}
      */
     public function lastAffected()
     {
-        return ($this->_result) ? pg_affected_rows($this->_result) : false;
+        return ($this->result) ? pg_affected_rows($this->result) : false;
     }
 
     /**
-     * Returns number of rows in previous resultset. If no previous resultset exists,
-     * this returns false.
-     *
-     * @return int Number of rows in resultset
+     * {@inheritdoc}
      */
     public function lastNumRows()
     {
-        return ($this->_result) ? pg_num_rows($this->_result) : false;
+        return ($this->result) ? pg_num_rows($this->result) : false;
     }
 
     /**
-     * Sets the database encoding.
-     *
-     * @param string $enc Database encoding
+     * {@inheritdoc}
      */
-    public function setEncoding($enc)
+    public function setCharset($enc)
     {
         return $this->query('SET NAMES '.$enc) != false;
     }
 
     /**
-     * Gets the database encoding.
-     *
-     * @return string The database encoding
+     * {@inheritdoc}
      */
-    public function getEncoding()
+    public function getCharset()
     {
         return pg_client_encoding($this->connection);
     }
 
     /**
-     * Returns a limit statement in the correct format for the particular database.
-     *
-     * @param int $limit  Limit of results returned
-     * @param int $offset Offset from which to start results
-     *
-     * @return string SQL limit/offset statement
+     * {@inheritdoc}
      */
     public function limit($limit, $offset = null, $page = null)
     {
@@ -238,12 +210,7 @@ class PgsqlDriver extends DboSource
     }
 
     /**
-     * Overrides DboSource::renderStatement to handle schema generation with Postgres-style indexes.
-     *
-     * @param string $type
-     * @param array  $data
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function renderStatement($type, $data)
     {
@@ -275,8 +242,8 @@ class PgsqlDriver extends DboSource
     }
 
     /**
-     * Helper function to clean the incoming values.
-     **/
+     * {@inheritdoc}
+     */
     public function escape($str)
     {
         if ($str == '') {

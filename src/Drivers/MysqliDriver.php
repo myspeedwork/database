@@ -21,8 +21,7 @@ class MysqliDriver extends DboSource
     protected $startQuote = '`';
     protected $endQuote   = '`';
     protected $attempts   = 0;
-
-    protected $_baseConfig = [
+    protected $baseConfig = [
         'persistent' => false,
         'host'       => 'localhost',
         'username'   => 'root',
@@ -34,15 +33,21 @@ class MysqliDriver extends DboSource
     ];
 
     /**
-     * Connects to the database using options in the given configuration array.
-     *
-     * @return bool True if the database could be connected, else false
+     * {@inheritdoc}
+     */
+    public function enabled()
+    {
+        return extension_loaded('mysqli');
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function connect()
     {
         $config = $this->config;
 
-        $config          = @array_merge($this->_baseConfig, $config);
+        $config          = @array_merge($this->baseConfig, $config);
         $this->connected = false;
 
         if (is_numeric($config['port'])) {
@@ -60,7 +65,7 @@ class MysqliDriver extends DboSource
         }
 
         if (!empty($config['charset'])) {
-            $this->setEncoding($config['charset']);
+            $this->setCharset($config['charset']);
         }
 
         if (!empty($config['timezone'])) {
@@ -71,19 +76,7 @@ class MysqliDriver extends DboSource
     }
 
     /**
-     * Check whether the MySQL extension is installed/loaded.
-     *
-     * @return bool
-     */
-    public function enabled()
-    {
-        return extension_loaded('mysqli');
-    }
-
-    /**
-     * Disconnects from database.
-     *
-     * @return bool True if the database could be disconnected, else false
+     * {@inheritdoc}
      */
     public function disConnect()
     {
@@ -95,44 +88,8 @@ class MysqliDriver extends DboSource
         return !$this->connected;
     }
 
-    public function fetch($sql)
-    {
-        $this->_result = $this->query($sql);
-
-        if (!$this->_result) {
-            return [];
-        }
-
-        $rows = [];
-        while ($row = mysqli_fetch_assoc($this->_result)) {
-            $rows[] = $row;
-        }
-
-        mysqli_free_result($this->_result);
-
-        return $rows;
-    }
-
     /**
-     * Returns a formatted error message from previous database operation.
-     *
-     * @return string Error message with error number
-     */
-    public function lastError()
-    {
-        if ($this->connection && mysqli_errno($this->connection)) {
-            return mysqli_errno($this->connection).': '.mysqli_error($this->connection);
-        }
-
-        return;
-    }
-
-    /**
-     * Executes given SQL statement.
-     *
-     * @param string $sql SQL statement
-     *
-     * @return resource Result resource identifier
+     * {@inheritdoc}
      */
     public function query($sql)
     {
@@ -167,11 +124,40 @@ class MysqliDriver extends DboSource
     }
 
     /**
-     * Returns the ID generated from the previous INSERT operation.
-     *
-     * @param unknown_type $source
-     *
-     * @return in
+     * {@inheritdoc}
+     */
+    public function fetch($sql)
+    {
+        $this->result = $this->query($sql);
+
+        if (!$this->result) {
+            return [];
+        }
+
+        $rows = [];
+        while ($row = mysqli_fetch_assoc($this->result)) {
+            $rows[] = $row;
+        }
+
+        mysqli_free_result($this->result);
+
+        return $rows;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function lastError()
+    {
+        if ($this->connection && mysqli_errno($this->connection)) {
+            return mysqli_errno($this->connection).': '.mysqli_error($this->connection);
+        }
+
+        return;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function lastInsertId()
     {
@@ -179,14 +165,11 @@ class MysqliDriver extends DboSource
     }
 
     /**
-     * Returns number of affected rows in previous database operation. If no previous operation exists,
-     * this returns false.
-     *
-     * @return int Number of affected rows
+     * {@inheritdoc}
      */
     public function lastAffected()
     {
-        if ($this->_result) {
+        if ($this->result) {
             return mysqli_affected_rows($this->connection);
         }
 
@@ -194,53 +177,44 @@ class MysqliDriver extends DboSource
     }
 
     /**
-     * Returns number of rows in previous resultset. If no previous resultset exists,
-     * this returns false.
-     *
-     * @return int Number of rows in resultset
+     * {@inheritdoc}
      */
     public function lastNumRows()
     {
-        if ($this->_result) {
-            return mysqli_num_rows($this->_result);
+        if ($this->result) {
+            return mysqli_num_rows($this->result);
         }
 
         return;
     }
 
     /**
-     * Sets the database encoding.
-     *
-     * @param string $enc Database encoding
+     * {@inheritdoc}
      */
-    public function setEncoding($enc)
+    private function setCharset($enc)
     {
         return $this->query('SET NAMES '.$enc) != false;
     }
 
     /**
-     * Sets the database timezone.
-     *
-     * @param string $zone Database timezone
+     * {@inheritdoc}
      */
-    public function setTimezone($zone)
-    {
-        return $this->query('SET time_zone = '.$zone) != false;
-    }
-
-    /**
-     * Gets the database encoding.
-     *
-     * @return string The database encoding
-     */
-    public function getEncoding()
+    public function getCharset()
     {
         return mysqli_client_encoding($this->connection);
     }
 
     /**
-     * Helper function to clean the incoming values.
-     **/
+     * {@inheritdoc}
+     */
+    private function setTimezone($zone)
+    {
+        return $this->query('SET time_zone = '.$zone) != false;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function escape($str)
     {
         if ($str == '') {

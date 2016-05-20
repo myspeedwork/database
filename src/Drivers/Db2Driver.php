@@ -37,7 +37,7 @@ class Db2Driver extends DboSource
      *
      * @var array
      */
-    protected $_baseConfig = [
+    protected $baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
         'username'   => 'root',
@@ -49,14 +49,20 @@ class Db2Driver extends DboSource
     ];
 
     /**
-     * Connects to the database using options in the given configuration array.
-     *
-     * @return bool True if the database could be connected, else false
+     * {@inheritdoc}
+     */
+    public function enabled()
+    {
+        return extension_loaded('ibm_db2');
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function connect()
     {
         $config = $this->config;
-        $config = array_merge($this->_baseConfig, $config);
+        $config = array_merge($this->baseConfig, $config);
 
         $conn = "DATABASE='{$config['database']}';HOSTNAME='{$config['host']}';PORT={$config['port']};";
         $conn .= "PROTOCOL=TCPIP;UID={$config['username']};PWD={$config['password']};";
@@ -73,31 +79,19 @@ class Db2Driver extends DboSource
             $this->query('SET search_path TO '.$config['schema']);
         }
         if (!empty($config['charset'])) {
-            $this->setEncoding($config['charset']);
+            $this->setCharset($config['charset']);
         }
 
         return $this->connection;
     }
 
     /**
-     * Check whether the MySQL extension is installed/loaded.
-     *
-     * @return bool
+     * {@inheritdoc}
      */
-    public function enabled()
+    public function disConnect()
     {
-        return extension_loaded('ibm_db2');
-    }
-
-    /**
-     * Disconnects from database.
-     *
-     * @return bool True if the database could be disconnected, else false
-     */
-    public function disconnect()
-    {
-        if ($this->_result) {
-            db2_free_result($this->_result);
+        if ($this->result) {
+            db2_free_result($this->result);
         }
         if (is_resource($this->connection)) {
             $this->connected = !db2_close($this->connection);
@@ -108,37 +102,8 @@ class Db2Driver extends DboSource
         return !$this->connected;
     }
 
-    public function fetch($sql)
-    {
-        $data          = [];
-        $stmt          = db2_prepare($this->connection, $sql);
-        $this->_result = db2_execute($stmt);
-
-        while ($row = db2_fetch_assoc($stmt)) {
-            $data[] = $row;
-        }
-
-        return $data;
-    }
-
     /**
-     * Returns a formatted error message from previous database operation.
-     *
-     * @return string Error message with error number
-     */
-    public function lastError()
-    {
-        $error = db2_conn_errormsg($this->connection);
-
-        return ($error) ? $error : null;
-    }
-
-    /**
-     * Executes given SQL statement.
-     *
-     * @param string $sql SQL statement
-     *
-     * @return resource Result resource identifier
+     * {@inheritdoc}
      */
     public function query($sql)
     {
@@ -149,11 +114,33 @@ class Db2Driver extends DboSource
     }
 
     /**
-     * Returns the ID generated from the previous INSERT operation.
-     *
-     * @param unknown_type $source
-     *
-     * @return in
+     * {@inheritdoc}
+     */
+    public function fetch($sql)
+    {
+        $data         = [];
+        $stmt         = db2_prepare($this->connection, $sql);
+        $this->result = db2_execute($stmt);
+
+        while ($row = db2_fetch_assoc($stmt)) {
+            $data[] = $row;
+        }
+
+        return $data;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function lastError()
+    {
+        $error = db2_conn_errormsg($this->connection);
+
+        return ($error) ? $error : null;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function lastInsertId()
     {
@@ -161,54 +148,39 @@ class Db2Driver extends DboSource
     }
 
     /**
-     * Returns number of affected rows in previous database operation. If no previous operation exists,
-     * this returns false.
-     *
-     * @return int Number of affected rows
+     * {@inheritdoc}
      */
     public function lastAffected()
     {
-        return ($this->_result) ? db2_num_rows($this->_result) : false;
+        return ($this->result) ? db2_num_rows($this->result) : false;
     }
 
     /**
-     * Returns number of rows in previous resultset. If no previous resultset exists,
-     * this returns false.
-     *
-     * @return int Number of rows in resultset
+     * {@inheritdoc}
      */
     public function lastNumRows()
     {
-        return ($this->_result) ? db2_num_rows($this->_result) : false;
+        return ($this->result) ? db2_num_rows($this->result) : false;
     }
 
     /**
-     * Sets the database encoding.
-     *
-     * @param string $enc Database encoding
+     * {@inheritdoc}
      */
-    public function setEncoding($enc)
+    public function setCharset($enc)
     {
         return $this->query('SET NAMES '.$enc) != false;
     }
 
     /**
-     * Gets the database encoding.
-     *
-     * @return string The database encoding
+     * {@inheritdoc}
      */
-    public function getEncoding()
+    public function getCharset()
     {
         return pg_client_encoding($this->connection);
     }
 
     /**
-     * Returns a limit statement in the correct format for the particular database.
-     *
-     * @param int $limit  Limit of results returned
-     * @param int $offset Offset from which to start results
-     *
-     * @return string SQL limit/offset statement
+     * {@inheritdoc}
      */
     public function limit($limit, $offset = null, $page = null)
     {
@@ -234,18 +206,16 @@ class Db2Driver extends DboSource
     }
 
     /**
-     * Overrides DboSource::renderStatement to handle schema generation with Postgres-style indexes.
-     *
-     * @param string $type
-     * @param array  $data
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function renderStatement($type, $data)
     {
         switch (strtolower($type)) {
             case 'schema':
                 extract($data);
+
+                $indexes = $data['indexes'];
+                $columns = $data['columns'];
 
                 foreach ($indexes as $i => $index) {
                     if (preg_match('/PRIMARY KEY/', $index)) {
@@ -262,7 +232,7 @@ class Db2Driver extends DboSource
                     }
                 }
 
-                return "CREATE TABLE {$table} (\n\t{$columns}\n);\n{$indexes}";
+                return 'CREATE TABLE '.$data['table']." (\n\t".$columns."\n);\n".$indexes;
             break;
             default:
                 return parent::renderStatement($type, $data);
@@ -271,8 +241,8 @@ class Db2Driver extends DboSource
     }
 
     /**
-     * Helper function to clean the incoming values.
-     **/
+     * {@inheritdoc}
+     */
     public function escape($str)
     {
         if ($str == '') {

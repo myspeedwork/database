@@ -16,7 +16,7 @@ use Speedwork\Util\Str;
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class DboSource extends DataSource
+abstract class DboSource
 {
     /**
      * Start quote.
@@ -38,6 +38,7 @@ class DboSource extends DataSource
      * @var array
      */
     protected $index = ['PRI' => 'primary', 'MUL' => 'index', 'UNI' => 'unique'];
+
     /**
      * Database keyword used to assign aliases to identifiers.
      *
@@ -46,55 +47,38 @@ class DboSource extends DataSource
     protected $alias = 'AS ';
 
     /**
-     * Time the last query took.
-     *
-     * @var int
-     */
-    protected $took = null;
-
-    /**
-     * Result.
+     * The set of valid SQL operations usable in a WHERE statement.
      *
      * @var array
      */
-    protected $_result = null;
+    protected $sqlOps = ['like', 'ilike', 'or', 'not', 'in', 'between', 'regexp', 'similar to'];
 
     /**
-     * Queries count.
-     *
-     * @var int
-     */
-    protected $_queriesCnt = 0;
-
-    /**
-     * Total duration of all queries.
-     *
-     * @var int
-     */
-    protected $_queriesTime = null;
-
-    /**
-     * Log of queries executed by this DataSource.
+     * Index of basic SQL commands.
      *
      * @var array
      */
-    protected $_queriesLog = [];
+    protected $commands = [
+        'begin'    => 'BEGIN',
+        'commit'   => 'COMMIT',
+        'rollback' => 'ROLLBACK',
+    ];
+
+    protected $connection = false;
 
     /**
-     * Maximum number of items in query log.
+     * Are we connected to the DataSource?
      *
-     * This is to prevent query log taking over too much memory.
-     *
-     * @var int Maximum number of queries in the queries log.
+     * @var bool
      */
-    protected $_queriesLogMax = 200;
+    protected $connected = false;
 
     /**
-     * Caches serialized results of executed queries.
+     * The default configuration of a specific DataSource.
      *
-     * @var array Maximum number of queries in the queries log.
+     * @var array
      */
-    protected $_queryCache = [];
+    protected $baseConfig = [];
 
     /**
      * The DataSource configuration.
@@ -104,29 +88,124 @@ class DboSource extends DataSource
     protected $config = [];
 
     /**
-     * Bypass automatic adding of joined fields/associations.
+     * Whether or not this DataSource is in the middle of a transaction.
      *
      * @var bool
      */
-    protected $__bypass = false;
-    /**
-     * The set of valid SQL operations usable in a WHERE statement.
-     *
-     * @var array
-     */
-    protected $__sqlOps = ['like', 'ilike', 'or', 'not', 'in', 'between', 'regexp', 'similar to'];
-
     protected $transaction = false;
+
     /**
-     * Index of basic SQL commands.
+     * Result.
      *
      * @var array
      */
-    protected $_commands = [
-        'begin'    => 'BEGIN',
-        'commit'   => 'COMMIT',
-        'rollback' => 'ROLLBACK',
-    ];
+    protected $result = null;
+
+    /**
+     * Check whether the conditions for the Datasource being available
+     * are satisfied. Often used from connect() to check for support
+     * before establishing a connection.
+     *
+     * @return bool Whether or not the Datasources conditions for use are met.
+     */
+    public function enabled()
+    {
+        return true;
+    }
+
+    /**
+     * Connects to the database using options in the given configuration array.
+     *
+     * @return bool True if the database could be connected, else false
+     */
+    abstract public function connect();
+
+    /**
+     * Disconnects from database.
+     *
+     * @return bool True if the database could be disconnected, else false
+     */
+    abstract public function disConnect();
+
+    /**
+     * Executes given SQL statement.
+     *
+     * @param string $sql SQL statement
+     *
+     * @return resource Result resource identifier
+     */
+    abstract public function fetch($sql);
+
+    /**
+     * Returns a formatted error message from previous database operation.
+     *
+     * @return string Error message with error number
+     */
+    abstract public function lastError();
+
+    /**
+     * Executes given SQL statement.
+     *
+     * @param string $sql SQL statement
+     *
+     * @return resource Result resource identifier
+     */
+    abstract public function query($sql);
+
+    /**
+     * Returns the ID generated from the previous INSERT operation.
+     *
+     * @param mixed $source
+     *
+     * @return mixed Last ID key generated in previous INSERT
+     */
+    abstract public function lastInsertId();
+
+    /**
+     * Returns the number of rows affected by last query.
+     *
+     * @param mixed $source
+     *
+     * @return int Number of rows affected by last query.
+     */
+    abstract public function lastAffected();
+
+    /**
+     * Returns the number of rows returned by last operation.
+     *
+     * @param mixed $source
+     *
+     * @return int Number of rows returned by last operation
+     */
+    abstract public function lastNumRows();
+
+    /**
+     * Helper function to clean the incoming values.
+     *
+     * @return string Formated message
+     **/
+    abstract public function escape($str);
+
+    /**
+     * Sets the configuration for the DataSource.
+     * Merges the $config information with the baseConfig and the existing $config property.
+     *
+     * @param array $config The configuration array
+     */
+    public function setConfig($config = [])
+    {
+        $this->config = array_merge($this->baseConfig, $this->config, $config);
+    }
+
+    /**
+     * Get the configuration for the DataSource.
+     *
+     * @param array $config The configuration array
+     */
+    public function getConfig()
+    {
+        return $this->config;
+    }
 
     /**
      * Builds and generates an SQL statement from an array.  Handles final clean-up before conversion.
@@ -149,9 +228,6 @@ class DboSource extends DataSource
                 }
             }
         }
-
-        //$query['fields'] = $this->name($query['fields']);
-        //$query['values'] = $this->value($query['values']);
 
         return $this->renderStatement($type, [
             'conditions' => $this->conditions($query['conditions'], true, true),
@@ -182,9 +258,7 @@ class DboSource extends DataSource
      */
     public function renderJoinStatement($data)
     {
-        extract($data);
-
-        return trim("{$type} JOIN {$table} {$alias} ON ({$conditions})");
+        return trim($data['type'].' JOIN '.$data['table'].' '.$data['alias'].' ON ('.$data['conditions'].')');
     }
 
     /**
@@ -223,47 +297,49 @@ class DboSource extends DataSource
      */
     public function renderStatement($type, $data)
     {
-        extract($data);
         $aliases = null;
+        $alias   = $data['alias'];
 
         switch (strtolower($type)) {
             case 'select':
-                return "SELECT {$fields} FROM {$table} {$alias} {$joins} {$conditions} {$group} {$order} {$limit}";
+                return 'SELECT '.$data['fields'].' FROM '.$data['table'].' '.$data['alias'].' '.$data['joins'].' '.$data['conditions'].' '.$data['group'].' '.$data['order'].' '.$data['limit'].'';
             break;
             case 'create':
             case 'insert':
+                $values = $data['values'];
                 $values = rtrim($values, ')');
                 $values = ltrim($values, '(');
 
-                return "INSERT INTO {$table} ({$fields}) VALUES ({$values})";
+                return 'INSERT INTO '.$data['table'].' ('.$data['fields'].') VALUES ('.$values.')';
             break;
             case 'update':
                 if (!empty($alias)) {
-                    $aliases = "{$this->alias}{$alias} {$joins} ";
+                    $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
                 }
 
-                return "UPDATE {$table} {$aliases}SET {$fields} {$conditions}";
+                return 'UPDATE '.$data['table'].' '.$aliases.'SET '.$data['fields'].' '.$data['conditions'].'';
             break;
             case 'delete':
                 if (!empty($alias)) {
-                    $aliases = "{$this->alias}{$alias} {$joins} ";
+                    $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
                 }
 
-                return "DELETE {$alias} FROM {$table} {$aliases} {$conditions} {$limit}";
+                return 'DELETE '.$data['alias'].' FROM '.$data['table'].' '.$aliases.' '.$data['conditions'].' '.$data['limit'].'';
             break;
             case 'schema':
                 foreach (['columns', 'indexes'] as $var) {
-                    if (is_array(${$var})) {
-                        ${$var} = "\t".implode(",\n\t", array_filter(${$var}));
+                    if (is_array($data[$var])) {
+                        $data[$var] = "\t".implode(",\n\t", array_filter($data[$var]));
                     }
                 }
+
+                $indexes = $data['indexes'];
+                $columns = $data['columns'];
                 if (trim($indexes) != '') {
                     $columns .= ',';
                 }
 
-                return "CREATE TABLE {$table} (\n{$columns}{$indexes});";
-            break;
-            case 'alter':
+                return 'CREATE TABLE '.$data['table']." (\n".$data['columns'].''.$data['indexes'].');';
             break;
         }
     }
@@ -305,7 +381,7 @@ class DboSource extends DataSource
         }
         $clauses = '/^WHERE\\x20|^GROUP\\x20BY\\x20|^HAVING\\x20|^ORDER\\x20BY\\x20/i';
 
-        if (preg_match($clauses, $conditions, $match)) {
+        if (preg_match($clauses, $conditions)) {
             $clause = '';
         }
         if (trim($conditions) == '') {
@@ -384,14 +460,8 @@ class DboSource extends DataSource
                         }
                     }
                 } elseif (is_array($value) && !empty($value) && !$valueInsert) {
-                    $keys = array_keys($value);
                     if (array_keys($value) === array_values(array_keys($value))) {
-                        $count = count($value);
-                        //if ($count === 1) {
-                         //   $data = $this->quoteFields($key).' = (';
-                        //} else {
-                            $data = $this->quoteFields($key).' IN (';
-                        //}
+                        $data = $this->quoteFields($key).' IN (';
                         if ($quoteValues || strpos($value[0], '-!') !== 0) {
                             if (is_object($model)) {
                                 $columnType = $model->getColumnType($key);
@@ -439,7 +509,7 @@ class DboSource extends DataSource
      */
     protected function parseKey($model, $key, $value)
     {
-        $operatorMatch = '/^(('.implode(')|(', $this->__sqlOps);
+        $operatorMatch = '/^(('.implode(')|(', $this->sqlOps);
         $operatorMatch .= '\\x20)|<[>=]?(?![^>]+>)\\x20?|[>=!]{1,3}(?!<)\\x20?)/is';
         $bound = (strpos($key, '?') !== false || (is_array($value) && strpos($key, ':') !== false));
 
@@ -586,7 +656,7 @@ class DboSource extends DataSource
      *
      * @return string ORDER BY clause
      */
-    public function order($keys, $direction = 'ASC')
+    protected function order($keys, $direction = 'ASC')
     {
         if (is_string($keys) && strpos($keys, ',') && !preg_match('/\(.+\,.+\)/', $keys)) {
             $keys = array_map('trim', explode(',', $keys));
@@ -651,6 +721,7 @@ class DboSource extends DataSource
 
         return ' ORDER BY '.$keys.' '.$direction;
     }
+
     /**
      * Create a GROUP BY SQL clause.
      *
@@ -658,7 +729,7 @@ class DboSource extends DataSource
      *
      * @return mixed string condition or null
      */
-    public function group($group)
+    protected function group($group)
     {
         if ($group) {
             if (is_array($group)) {
@@ -816,23 +887,21 @@ class DboSource extends DataSource
             return $data;
         }
         $data = trim($data);
-        if (preg_match('/^[\w-]+(?:\.[^ \*]*)*$/', $data)) { // string, string.string
-            if (strpos($data, '.') === false) { // string
+        if (preg_match('/^[\w-]+(?:\.[^ \*]*)*$/', $data)) {
+            if (strpos($data, '.') === false) {
                 return $this->startQuote.$data.$this->endQuote;
             }
             $items = explode('.', $data);
 
             return implode($this->endQuote.'.'.$this->startQuote, $items).$this->endQuote;
         }
-        if (preg_match('/^[\w-]+\.\*$/', $data)) { // string.*
+        if (preg_match('/^[\w-]+\.\*$/', $data)) {
             return $this->startQuote.str_replace('.*', $this->endQuote.'.*', $data);
         }
-        if (preg_match('/^([\w-]+)\((.*)\)$/', $data, $matches)) { // Functions
+        if (preg_match('/^([\w-]+)\((.*)\)$/', $data, $matches)) {
             return $matches[1].'('.$this->name($matches[2]).')';
         }
-        if (
-            preg_match('/^([\w-]+(\.[\w-]+|\(.*\))*)\s+'.preg_quote($this->alias).'\s*([\w-]+)$/i', $data, $matches
-        )) {
+        if (preg_match('/^([\w-]+(\.[\w-]+|\(.*\))*)\s+'.preg_quote($this->alias).'\s*([\w-]+)$/i', $data, $matches)) {
             return preg_replace('/\s{2,}/', ' ', $this->name($matches[1]).' '.$this->alias.' '.$this->name($matches[3]));
         }
         if (preg_match('/^[\w-_\s]*[\w-_]+/', $data)) {
@@ -845,16 +914,15 @@ class DboSource extends DataSource
     /**
      * Quotes and prepares fields and values for an SQL UPDATE statement.
      *
-     * @param Model $model
      * @param array $fields
      * @param bool  $quoteValues If values should be quoted, or treated as SQL snippets
      * @param bool  $alias       Include the model alias in the field name
      *
      * @return array Fields and values, quoted and prepared
      */
-    public function _prepareUpdateFields($fields, $quoteValues = true, $alias = false)
+    protected function prepareUpdateFields($fields, $quoteValues = true, $alias = false)
     {
-        $quotedAlias = $this->startQuote.$model->alias.$this->endQuote;
+        $quotedAlias = $this->startQuote.$this->endQuote;
 
         $updates = [];
         foreach ($fields as $field => $value) {
@@ -897,7 +965,7 @@ class DboSource extends DataSource
      *
      * @return array
      */
-    public function buildIndex($indexes, $table = null)
+    public function buildIndex($indexes)
     {
         $join = [];
         foreach ($indexes as $name => $value) {
@@ -946,7 +1014,7 @@ class DboSource extends DataSource
      * @return int The number of dimensions in $array
      * @static
      */
-    public function countDim($array = null, $all = false, $count = 0)
+    protected function countDim($array = null, $all = false, $count = 0)
     {
         if ($all) {
             $depth = [$count];
@@ -978,7 +1046,7 @@ class DboSource extends DataSource
      */
     public function begin()
     {
-        if ($this->query($this->_commands['begin'])) {
+        if ($this->query($this->commands['begin'])) {
             $this->transaction = true;
 
             return true;
@@ -998,7 +1066,7 @@ class DboSource extends DataSource
      */
     public function commit()
     {
-        if ($this->query($this->_commands['commit'])) {
+        if ($this->query($this->commands['commit'])) {
             $this->transaction = false;
 
             return true;
@@ -1018,7 +1086,7 @@ class DboSource extends DataSource
      */
     public function rollback()
     {
-        if ($this->query($this->_commands['rollback'])) {
+        if ($this->query($this->commands['rollback'])) {
             $this->transaction = false;
 
             return true;
@@ -1027,25 +1095,35 @@ class DboSource extends DataSource
         return false;
     }
 
-    /**
-     * Helper function.
-     **/
-    public function escape($str)
+    protected function logSqlError($sql)
     {
-        if ($str == '') {
-            return;
-        }
+        $message = $this->lastError().' : '.$sql;
 
-        if (get_magic_quotes_gpc()) {
-            return trim($str);
-        }
+        //Log::write('sql', $message);
 
-        if (function_exists('mysql_real_escape_string')) {
-            $str = mysql_real_escape_string($str);
-        } else {
-            $str = addslashes($str);
-        }
+        return true;
+    }
 
-        return trim($str);
+    /**
+     * Closes a connection. Override in subclasses.
+     *
+     * @return bool
+     */
+    public function close()
+    {
+        return $this->connected = false;
+    }
+
+    /**
+     * Closes the current datasource.
+     */
+    public function __destruct()
+    {
+        if ($this->transaction) {
+            $this->rollback();
+        }
+        if ($this->connected) {
+            $this->close();
+        }
     }
 }

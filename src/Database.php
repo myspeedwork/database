@@ -27,11 +27,6 @@ class Database extends Di
     private $prefix;
     private $sql;
 
-    public function __construct($config = [])
-    {
-        $this->setConfig($config);
-    }
-
     public function setConfig($config = [])
     {
         $this->config = $config;
@@ -52,7 +47,8 @@ class Database extends Di
 
         $database = '\\Speedwork\\Database\\Drivers\\'.ucfirst($driver).'Driver';
 
-        $this->driver    = new $database($config);
+        $this->driver = new $database();
+        $this->driver->setConfig($config);
         $this->connected = $this->driver->connect();
 
         return $this->driver;
@@ -606,17 +602,11 @@ class Database extends Di
             ? $this->data['page']
             : 1;
 
-        $limit = $params['limit'];
-
-        if ($limit === false) {
-            $limit = $params['llimit'];
-        }
-
-        $limit = ($limit && is_numeric($limit)) ? $limit : 25;
-
-        if (!empty($this->data['limit']) && is_numeric($this->data['limit'])) {
-            $limit = $this->data['limit'];
-        }
+        $limit = ($params['limit'] && is_numeric($params['limit']))
+            ? $params['limit']
+            : !empty($this->data['limit']) && is_numeric($this->data['limit'])
+            ? $this->data['limit']
+            : 25;
 
         $limit_start = $limit * ($page - 1);
 

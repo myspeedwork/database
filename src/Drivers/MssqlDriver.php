@@ -18,10 +18,10 @@ use Speedwork\Database\DboSource;
  */
 class MssqlDriver extends DboSource
 {
+    private $lastError    = false;
     protected $startQuote = '[';
     protected $endQuote   = ']';
-
-    protected $_baseConfig = [
+    protected $baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
         'username'   => 'root',
@@ -29,34 +29,27 @@ class MssqlDriver extends DboSource
         'database'   => 'logics',
         'port'       => '1433',
     ];
-
-    /**
-     * Index of basic SQL commands.
-     *
-     * @var array
-     */
-    protected $_commands = [
+    protected $commands = [
         'begin'    => 'BEGIN TRANSACTION',
         'commit'   => 'COMMIT',
         'rollback' => 'ROLLBACK',
     ];
 
     /**
-     * Define if the last query had error.
-     *
-     * @var string
+     * {@inheritdoc}
      */
-    protected $__lastQueryHadError = false;
+    public function enabled()
+    {
+        return extension_loaded('mssql');
+    }
 
     /**
-     * Connects to the database using options in the given configuration array.
-     *
-     * @return bool True if the database could be connected, else false
+     * {@inheritdoc}
      */
     public function connect()
     {
         $config = $this->config;
-        $config = array_merge($this->_baseConfig, $config);
+        $config = array_merge($this->baseConfig, $config);
 
         $os = env('OS');
         if (!empty($os) && strpos($os, 'Windows') !== false) {
@@ -89,21 +82,9 @@ class MssqlDriver extends DboSource
     }
 
     /**
-     * Check whether the MySQL extension is installed/loaded.
-     *
-     * @return bool
+     * {@inheritdoc}
      */
-    public function enabled()
-    {
-        return extension_loaded('mssql');
-    }
-
-    /**
-     * Disconnects from database.
-     *
-     * @return bool True if the database could be disconnected, else false
-     */
-    public function disconnect()
+    public function disConnect()
     {
         @mssql_free_result($this->results);
         $this->connected = !@mssql_close($this->connection);
@@ -111,12 +92,26 @@ class MssqlDriver extends DboSource
         return !$this->connected;
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public function query($sql)
+    {
+        $result          = @mssql_query($sql, $this->connection);
+        $this->lastError = ($result === false);
+
+        return $result;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function fetch($sql)
     {
-        $data          = [];
-        $this->_result = mssql_query($sql, $this->connection);
+        $this->result = $this->query($sql);
 
-        while ($row = @mssql_fetch_array($this->_result)) {
+        $data = [];
+        while ($row = @mssql_fetch_array($this->result)) {
             $data[] = $row;
         }
 
@@ -124,28 +119,11 @@ class MssqlDriver extends DboSource
     }
 
     /**
-     * Executes given SQL statement.
-     *
-     * @param string $sql SQL statement
-     *
-     * @return resource Result resource identifier
-     */
-    public function query($sql)
-    {
-        $result                    = @mssql_query($sql, $this->connection);
-        $this->__lastQueryHadError = ($result === false);
-
-        return $result;
-    }
-
-    /**
-     * Returns a formatted error message from previous database operation.
-     *
-     * @return string Error message with error number
+     * {@inheritdoc}
      */
     public function lastError()
     {
-        if ($this->__lastQueryHadError) {
+        if ($this->lastError) {
             $error = mssql_get_last_message();
             if ($error && !preg_match('/contexto de la base de datos a|contesto di database|changed database|contexte de la base de don|datenbankkontext/i', $error)) {
                 return $error;
@@ -156,11 +134,7 @@ class MssqlDriver extends DboSource
     }
 
     /**
-     * Returns the ID generated from the previous INSERT operation.
-     *
-     * @param unknown_type $source
-     *
-     * @return in
+     * {@inheritdoc}
      */
     public function lastInsertId()
     {
@@ -168,14 +142,11 @@ class MssqlDriver extends DboSource
     }
 
     /**
-     * Returns number of affected rows in previous database operation. If no previous operation exists,
-     * this returns false.
-     *
-     * @return int Number of affected rows
+     * {@inheritdoc}
      */
     public function lastAffected()
     {
-        if ($this->_result) {
+        if ($this->result) {
             return mssql_rows_affected($this->connection);
         }
 
@@ -183,27 +154,19 @@ class MssqlDriver extends DboSource
     }
 
     /**
-     * Returns number of rows in previous resultset. If no previous resultset exists,
-     * this returns false.
-     *
-     * @return int Number of rows in resultset
+     * {@inheritdoc}
      */
     public function lastNumRows()
     {
-        if ($this->_result) {
-            return mssql_num_rows($this->_result);
+        if ($this->result) {
+            return mssql_num_rows($this->result);
         }
 
         return;
     }
 
     /**
-     * Returns a limit statement in the correct format for the particular database.
-     *
-     * @param int $limit  Limit of results returned
-     * @param int $offset Offset from which to start results
-     *
-     * @return string SQL limit/offset statement
+     * {@inheritdoc}
      */
     public function limit($limit, $offset = null)
     {
@@ -224,12 +187,7 @@ class MssqlDriver extends DboSource
     }
 
     /**
-     * Builds final SQL statement.
-     *
-     * @param string $type Query type
-     * @param array  $data Query data
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function renderStatement($type, $data)
     {
@@ -247,16 +205,19 @@ class MssqlDriver extends DboSource
                     $limit = preg_replace('/\s*offset.*$/i', '', $limit);
                     preg_match('/top\s+([0-9]+)/i', $limit, $limitVal);
                     $offset                = intval($offset[1]) + intval($limitVal[1]);
-                    $rOrder                = $this->__switchSort($order);
-                    list($order2, $rOrder) = [$this->__mapFields($order), $this->__mapFields($rOrder)];
+                    $rOrder                = $this->switchSort($order);
+                    list($order2, $rOrder) = [$this->mapFields($order), $this->mapFields($rOrder)];
 
                     return "SELECT * FROM (SELECT {$limit} * FROM (SELECT TOP {$offset} {$fields} FROM {$table} {$alias} {$joins} {$conditions} {$group} {$order}) AS Set1 {$rOrder}) AS Set2 {$order2}";
                 } else {
                     return "SELECT {$limit} {$fields} FROM {$table} {$alias} {$joins} {$conditions} {$group} {$order}";
                 }
-            break;
+                break;
             case 'schema':
                 extract($data);
+
+                $indexes = $data['indexes'];
+                $columns = $data['columns'];
 
                 foreach ($indexes as $i => $index) {
                     if (preg_match('/PRIMARY KEY/', $index)) {
@@ -271,7 +232,7 @@ class MssqlDriver extends DboSource
                     }
                 }
 
-                return "CREATE TABLE {$table} (\n{$columns});\n{$indexes}";
+                return 'CREATE TABLE '.$data['table']." (\n".$columns.");\n".$indexes;
             break;
             default:
                 return parent::renderStatement($type, $data);
@@ -286,7 +247,7 @@ class MssqlDriver extends DboSource
      *
      * @return string
      */
-    public function __switchSort($order)
+    private function switchSort($order)
     {
         $order = preg_replace('/\s+ASC/i', '__tmp_asc__', $order);
         $order = preg_replace('/\s+DESC/i', ' ASC', $order);
@@ -301,7 +262,7 @@ class MssqlDriver extends DboSource
      *
      * @return string The value of $sql with field names replaced
      */
-    public function __mapFields($sql)
+    private function mapFields($sql)
     {
         if (empty($sql) || empty($this->__fieldMappings)) {
             return $sql;
@@ -315,26 +276,8 @@ class MssqlDriver extends DboSource
     }
 
     /**
-     * Sets the database encoding.
-     *
-     * @param string $enc Database encoding
+     * {@inheritdoc}
      */
-    public function setEncoding()
-    {
-    }
-
-    /**
-     * Gets the database encoding.
-     *
-     * @return string The database encoding
-     */
-    public function getEncoding()
-    {
-    }
-
-    /**
-     * Helper function to clean the incoming values.
-     **/
     public function escape($str)
     {
         if ($str == '') {

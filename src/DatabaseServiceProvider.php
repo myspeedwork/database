@@ -33,13 +33,14 @@ class DatabaseServiceProvider extends ServiceProvider
         };
     }
 
-    protected function getConnection($name = 'default')
+    protected function getConnection($name = null)
     {
         $config = $this->getConfig($name);
 
-        $wrapperClass = $config['wrapper'] ?: 'Database';
+        $wrapperClass = $config['wrapper'] ?: '\\Speedwork\\Database\\Database';
 
-        $connection = new $wrapperClass($config);
+        $connection = new $wrapperClass();
+        $connection->setConfig($config);
         $connection->connect();
 
         if (!$connection->isConnected()) {

@@ -18,19 +18,8 @@ use Speedwork\Database\DboSource;
  */
 class SqliteDriver extends DboSource
 {
-    /**
-     * Start quote.
-     *
-     * @var string
-     */
     protected $startQuote = '"';
-
-    /**
-     * End quote.
-     *
-     * @var string
-     */
-    protected $endQuote = '"';
+    protected $endQuote   = '"';
 
     /**
      * Keeps the transaction statistics of CREATE/UPDATE/DELETE queries.
@@ -40,35 +29,37 @@ class SqliteDriver extends DboSource
     protected $_queryStats = [];
 
     /**
-     * Base configuration settings for MySQL driver.
-     *
-     * @var array
+     * {@inheritdoc}
      */
-    protected $_baseConfig = [
+    protected $baseConfig = [
         'persistent' => true,
         'database'   => null,
     ];
 
     /**
-     * Index of basic SQL commands.
-     *
-     * @var array
+     * {@inheritdoc}
      */
-    protected $_commands = [
+    protected $commands = [
         'begin'    => 'BEGIN TRANSACTION',
         'commit'   => 'COMMIT TRANSACTION',
         'rollback' => 'ROLLBACK TRANSACTION',
     ];
 
     /**
-     * Connects to the database using options in the given configuration array.
-     *
-     * @return bool True if the database could be connected, else false
+     * {@inheritdoc}
+     */
+    public function enabled()
+    {
+        return extension_loaded('sqlite');
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function connect()
     {
         $config = $this->config;
-        $config = array_merge($this->_baseConfig, $config);
+        $config = array_merge($this->baseConfig, $config);
         if (!$config['persistent']) {
             $this->connection = sqlite_open($config['database']);
         } else {
@@ -80,38 +71,51 @@ class SqliteDriver extends DboSource
             $this->query('PRAGMA count_changes = 1;');
         }
 
+        if (!empty($config['charset'])) {
+            $this->setCharset($config['charset']);
+        }
+
+        if (!empty($config['timezone'])) {
+            $this->setTimezone($config['timezone']);
+        }
+
         return $this->connection;
     }
 
     /**
-     * Check whether the MySQL extension is installed/loaded.
-     *
-     * @return bool
+     * {@inheritdoc}
      */
-    public function enabled()
+    public function disConnect()
     {
-        return extension_loaded('sqlite');
+        $this->connected = !@sqlite_close($this->connection);
+
+        return !$this->connected;
     }
 
     /**
-     * Disconnects from database.
-     *
-     * @return bool True if the database could be disconnected, else false
+     * {@inheritdoc}
      */
-    public function disconnect()
+    public function query($sql)
     {
-        @sqlite_close($this->connection);
-        $this->connected = false;
+        if (preg_match('/^(INSERT|UPDATE|DELETE)/', $sql)) {
+            list($this->_queryStats) = $this->fetch($sql);
 
-        return $this->connected;
+            return $this->result;
+        }
+        $this->result = sqlite_query($this->connection, $sql);
+
+        return $this->result;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function fetch($sql)
     {
-        $data          = [];
-        $this->_result = sqlite_query($this->connection, $sql);
+        $data         = [];
+        $this->result = sqlite_query($this->connection, $sql);
 
-        while ($row = @sqlite_fetch_array($this->_result, SQLITE_ASSOC)) {
+        while ($row = @sqlite_fetch_array($this->result, SQLITE_ASSOC)) {
             $data[] = $row;
         }
 
@@ -119,27 +123,7 @@ class SqliteDriver extends DboSource
     }
 
     /**
-     * Executes given SQL statement.
-     *
-     * @param string $sql SQL statement
-     *
-     * @return resource Result resource identifier
-     */
-    public function query($sql)
-    {
-        if (preg_match('/^(INSERT|UPDATE|DELETE)/', $sql)) {
-            list($this->_queryStats) = $this->fetch($sql);
-
-            return    $this->_result;
-        }
-        $this->_result = sqlite_query($this->connection, $sql);
-
-        return $this->_result;
-    }
-    /**
-     * Returns a formatted error message from previous database operation.
-     *
-     * @return string Error message with error number
+     * {@inheritdoc}
      */
     public function lastError()
     {
@@ -152,11 +136,7 @@ class SqliteDriver extends DboSource
     }
 
     /**
-     * Returns the ID generated from the previous INSERT operation.
-     *
-     * @param unknown_type $source
-     *
-     * @return in
+     * {@inheritdoc}
      */
     public function lastInsertId()
     {
@@ -164,10 +144,7 @@ class SqliteDriver extends DboSource
     }
 
     /**
-     * Returns number of affected rows in previous database operation. If no previous operation exists,
-     * this returns false.
-     *
-     * @return int Number of affected rows
+     * {@inheritdoc}
      */
     public function lastAffected()
     {
@@ -183,27 +160,19 @@ class SqliteDriver extends DboSource
     }
 
     /**
-     * Returns number of rows in previous resultset. If no previous resultset exists,
-     * this returns false.
-     *
-     * @return int Number of rows in resultset
+     * {@inheritdoc}
      */
     public function lastNumRows()
     {
         if ($this->hasResult()) {
-            sqlite_num_rows($this->_result);
+            sqlite_num_rows($this->result);
         }
 
         return false;
     }
 
     /**
-     * Returns a limit statement in the correct format for the particular database.
-     *
-     * @param int $limit  Limit of results returned
-     * @param int $offset Offset from which to start results
-     *
-     * @return string SQL limit/offset statement
+     * {@inheritdoc}
      */
     public function limit($limit, $offset = null)
     {
@@ -224,11 +193,9 @@ class SqliteDriver extends DboSource
     }
 
     /**
-     * Sets the database encoding.
-     *
-     * @param string $enc Database encoding
+     * {@inheritdoc}
      */
-    public function setEncoding($enc)
+    public function setCharset($enc)
     {
         if (!in_array($enc, ['UTF-8', 'UTF-16', 'UTF-16le', 'UTF-16be'])) {
             return false;
@@ -238,36 +205,27 @@ class SqliteDriver extends DboSource
     }
 
     /**
-     * Gets the database encoding.
-     *
-     * @return string The database encoding
+     * {@inheritdoc}
      */
-    public function getEncoding()
+    public function getCharset()
     {
         return $this->fetchRow('PRAGMA encoding');
     }
 
     /**
-     * Overrides DboSource::renderStatement to handle schema generation with SQLite-style indexes.
-     *
-     * @param string $type
-     * @param array  $data
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function renderStatement($type, $data)
     {
         switch (strtolower($type)) {
             case 'schema':
-                extract($data);
-
                 foreach (['columns', 'indexes'] as $var) {
-                    if (is_array(${$var})) {
-                        ${$var} = "\t".implode(",\n\t", array_filter(${$var}));
+                    if (is_array($data[$var])) {
+                        $data[$var] = "\t".implode(",\n\t", array_filter($data[$var]));
                     }
                 }
 
-                return "CREATE TABLE {$table} (\n{$columns});\n{$indexes}";
+                return 'CREATE TABLE '.$data['table']." (\n".$data['columns'].");\n{".$data['indexes'].'}';
             break;
             default:
                 return parent::renderStatement($type, $data);
@@ -276,8 +234,8 @@ class SqliteDriver extends DboSource
     }
 
     /**
-     * Helper function to clean the incoming values.
-     **/
+     * {@inheritdoc}
+     */
     public function escape($str)
     {
         if ($str == '') {
