@@ -20,63 +20,62 @@ use Speedwork\Util\Pagination;
  */
 class Database extends Di
 {
-    private $connection;
-    private $self;
-    private $prefix;
-    private $query;
+    private $cache     = false;
     private $connected = false;
+    private $driver;
+    private $config = [];
+    private $prefix;
+    private $sql;
 
-    /**
-     * Returns a singleton instance.
-     *
-     * @return object
-     * @static
-     */
-    public static function getInstance($driver, $signature = '')
+    public function __construct($config = [])
     {
-        static $instance = [];
-        $signature       = $driver.$signature;
-        if (!$instance[$signature]) {
-            $class                = '\\Speedwork\\Database\\Drivers\\'.ucfirst($driver).'Driver';
-            $instance[$signature] = new $class();
-        }
-
-        return $instance[$signature];
+        $this->setConfig($config);
     }
 
-    /**
-     * connect() method makes the actual server connection and selects a database
-     * only if needed. This saves database connections.  Multiple database types are
-     * supported. Enter your connection credentials in the switch statement below.
-     *
-     * This is a private function, but it is at the top of the class because you need
-     * to enter your connections.
-     **/
-    public function connect($config = [])
+    public function setConfig($config = [])
     {
+        $this->config = $config;
+    }
+
+    public function getConfig()
+    {
+        return $this->config;
+    }
+
+    public function connect()
+    {
+        $config = $this->config;
+
+        $driver       = ($config['driver']) ? $config['driver'] : 'mysqli';
+        $this->cache  = $config['cache'];
         $this->prefix = $config['prefix'];
 
-        $driver = ($config['driver']) ? $config['driver'] : 'mysql';
-        $sig    = md5($config['database'].'_'.$config['host']).$config['sig'];
-        $db     = static::getInstance($driver, $sig);
+        $database = '\\Speedwork\\Database\\Drivers\\'.ucfirst($driver).'Driver';
 
-        $db->config      = $config;
-        $this->connected = $db->connect();
-        $this->self      = $db;
+        $this->driver    = new $database($config);
+        $this->connected = $this->driver->connect();
 
-        if ($db->connected == false) {
+        return $this->driver;
+    }
+
+    public function isConnected()
+    {
+        if ($this->connected === false) {
             return false;
         }
 
-        return $db->connection;
+        $this->connected = $this->driver->query('SELECT 1');
+
+        return $this->connected;
     }
 
     /**
-     * disconnect from connection.
+     * disconnect from driver.
      */
-    public function disconnect()
+    public function disConnect()
     {
-        $this->self->disconnect();
+        $this->driver->disConnect();
+        $this->connected = false;
     }
 
     /**
@@ -86,23 +85,20 @@ class Database extends Di
      *
      * @return bool True on success, false on failure
      */
-    public function reconnect($config = [])
+    public function reConnect()
     {
-        $driver = ($config['driver']) ? $config['driver'] : 'mysql';
-        $db     = $this->getInstance($driver);
-        $db->disconnect();
+        if ($this->connected === false) {
+            return false;
+        }
 
-        return $this->connect($config);
-    }
+        $connected = $this->driver->query('SELECT 1');
+        if ($connected) {
+            return true;
+        }
 
-    /**
-     * Get the underlying connection object.
-     *
-     * @return PDOConnection
-     */
-    public function getConnection()
-    {
-        return $this->connection;
+        $this->disconnect();
+
+        return $this->connect();
     }
 
     /**
@@ -115,30 +111,45 @@ class Database extends Di
      *
      * @return array|false
      **/
-    public function fetch($sql)
+    public function fetch($sql, $duration = null, $name = null)
     {
+        if ($duration === 'daily') {
+            $duration = '+1 DAY';
+        }
+
         $sql = str_replace('#__', $this->prefix, $sql);
 
-        return $this->getFromDB($sql);
+        $this->sql = $sql;
+
+        if ($this->cache == false || empty($duration)) {
+            return $this->getFromDb($sql);
+        }
+
+        $cache_key = $name ?: md5($sql);
+        $cache_key = 'db_'.$cache_key;
+
+        return $this->get('cache')->remember($cache_key, function () use ($sql) {
+              return $this->getFromDb($sql);
+        }, $duration);
+
+        return $this->getFromDb($sql);
     }
 
-    private function getFromDB($sql)
+    public function fetchAssoc($sql, $duration = null, $name = null)
     {
-        $this->query = $sql;
-
-        return $this->self->fetch($sql);
-    }
-
-    public function fetchAssoc($sql, $cacheTime = 0, $name = '')
-    {
-        $data = $this->fetch($sql, $cacheTime, $name);
+        $data = $this->fetch($sql, $duration, $name);
 
         return $data[0];
     }
 
-    public function numRows()
+    public function fetchAll($sql, $duration = null, $name = null)
     {
-        return $this->self->numRows();
+        return $this->fetch($sql, $duration, $name);
+    }
+
+    protected function getFromDb($sql)
+    {
+        return $this->driver->fetch($sql);
     }
 
     /**
@@ -152,7 +163,7 @@ class Database extends Di
      */
     public function begin()
     {
-        return $this->self->begin();
+        return $this->driver->begin();
     }
 
     /**
@@ -166,7 +177,7 @@ class Database extends Di
      */
     public function commit()
     {
-        return $this->self->commit();
+        return $this->driver->commit();
     }
 
     /**
@@ -180,7 +191,7 @@ class Database extends Di
      */
     public function rollback()
     {
-        return $this->self->rollback();
+        return $this->driver->rollback();
     }
 
     /**
@@ -192,40 +203,61 @@ class Database extends Di
      **/
     public function query($sql)
     {
-        $sql         = str_replace('#__', $this->prefix, $sql);
-        $this->query = $sql;
+        $sql       = str_replace('#__', $this->prefix, $sql);
+        $this->sql = $sql;
 
-        return $this->self->query($sql);
+        return $this->driver->query($sql);
     }
 
     public function lastError()
     {
-        return $this->self->lastError();
+        return $this->driver->lastError();
     }
 
-    public function insertId()
-    {
-        return $this->self->insertId();
-    }
-
+    /**
+     * Returns the ID generated from the previous INSERT operation.
+     *
+     * @param mixed $source
+     *
+     * @return mixed Last ID key generated in previous INSERT
+     */
     public function lastInsertId()
     {
-        return $this->self->insertId();
+        return $this->driver->lastInsertId();
     }
 
-    public function affectedRows()
+    /**
+     * Returns the number of rows returned by last operation.
+     *
+     * @param mixed $source
+     *
+     * @return int Number of rows returned by last operation
+     */
+    public function lastNumRows()
     {
-        return $this->self->affectedRows();
+        return $this->driver->lastNumRows();
     }
 
-    public function getTables()
+    /**
+     * Returns the number of rows affected by last query.
+     *
+     * @param mixed $source
+     *
+     * @return int Number of rows affected by last query.
+     */
+    public function lastAffected()
     {
-        return $this->self->getTableList();
+        return $this->driver->lastAffected();
     }
 
-    public function getTableColumns($tables, $typeonly = true)
+    public function getTableList()
     {
-        return $this->self->getTableFields($tables, $typeonly);
+        return $this->driver->getTableList();
+    }
+
+    public function getTableFields($tables, $typeonly = true)
+    {
+        return $this->driver->getTableFields($tables, $typeonly);
     }
 
     /**
@@ -290,7 +322,7 @@ class Database extends Di
 
                 $params['fields'] = ['count(*) as total'];
                 unset($params['limit'], $params['order'], $params['offset'], $params['page']);
-                $query = $this->self->buildStatement($params, $table);
+                $query = $this->driver->buildStatement($params, $table);
 
                 if ($params['group']) {
                     $query = 'SELECT COUNT(*) AS total FROM ('.$query.') as tmp';
@@ -301,7 +333,7 @@ class Database extends Di
                 break;
 
             case 'all':
-                $query   = $this->self->buildStatement($params, $table);
+                $query   = $this->driver->buildStatement($params, $table);
                 $results = $this->fetch($query, $cache, $cache_name);
                 break;
             /*
@@ -311,7 +343,7 @@ class Database extends Di
              *       );
              */
             case 'list':
-                $query = $this->self->buildStatement($params, $table);
+                $query = $this->driver->buildStatement($params, $table);
                 $rows  = $this->fetch($query, $cache, $cache_name);
 
                 $fields = [];
@@ -383,7 +415,7 @@ class Database extends Di
                 $params['order']      = [$field.' DESC'];
                 $params['conditions'] = array_merge([$field.' < ' => $value], $conditions);
 
-                $query = $this->self->buildStatement($params, $table);
+                $query = $this->driver->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
 
                 $results['prev'] = ($params['limit']) ? $data[0] : $data;
@@ -392,7 +424,7 @@ class Database extends Di
                 $params['order']      = [$field];
                 $params['conditions'] = array_merge([$field.' > ' => $value], $conditions);
 
-                $query = $this->self->buildStatement($params, $table);
+                $query = $this->driver->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
 
                 $results['next'] = ($params['limit']) ? $data[0] : $data;
@@ -414,7 +446,7 @@ class Database extends Di
                     throw new Exception('field not found');
                 }
 
-                $query = $this->self->buildStatement($params, $table);
+                $query = $this->driver->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
 
                 $menuData = ['items' => [],'parents' => []];
@@ -429,13 +461,13 @@ class Database extends Di
 
             case 'first':
                 $params['limit'] = 1;
-                $query           = $this->self->buildStatement($params, $table);
+                $query           = $this->driver->buildStatement($params, $table);
                 $results         = $this->fetch($query, $cache, $cache_name);
                 $results         = $results[0];
                 break;
 
             case 'field':
-                $query   = $this->self->buildStatement($params, $table);
+                $query   = $this->driver->buildStatement($params, $table);
                 $rows    = $this->fetch($query, $cache, $cache_name);
                 $results = [];
                 foreach ($rows as $key => $v) {
@@ -701,13 +733,13 @@ class Database extends Di
             if (is_array($value)) {
                 $va = [];
                 foreach ($value as $k2 => $v2) {
-                    $va[] = ($v2) ? $this->self->value($v2) : "''";
-                    $k[]  = $this->self->name($k2);
+                    $va[] = ($v2) ? $this->driver->value($v2) : "''";
+                    $k[]  = $this->driver->name($k2);
                 }
                 $v[] = '('.@implode(',', $va).')';
             } else {
-                $v[] = ($value) ? $this->self->value($value) : "''";
-                $k[] = $this->self->name($key);
+                $v[] = ($value) ? $this->driver->value($value) : "''";
+                $k[] = $this->driver->name($key);
             }
         }
 
@@ -718,7 +750,7 @@ class Database extends Di
         $params['fields'] = $k;
         $params['values'] = $v;
 
-        $query = $this->self->buildStatement($params, $table, 'insert');
+        $query = $this->driver->buildStatement($params, $table, 'insert');
 
         $results = $this->query($query);
 
@@ -782,14 +814,14 @@ class Database extends Di
         $k = [];
         foreach ($params['fields'] as $key => $value) {
             if ($key && !is_numeric($key)) {
-                $k[] = $this->self->name($key).' = '.$this->self->value($value);
+                $k[] = $this->driver->name($key).' = '.$this->driver->value($value);
             } else {
                 $k[] = $value;
             }
         }
         $params['fields'] = $k;
 
-        $query = $this->self->buildStatement($params, $params['table'], 'update');
+        $query = $this->driver->buildStatement($params, $params['table'], 'update');
 
         $results = $this->query($query);
 
@@ -861,7 +893,7 @@ class Database extends Di
         }
         //end of helpers
 
-        $query = $this->self->buildStatement($params, $params['table'], 'delete');
+        $query = $this->driver->buildStatement($params, $params['table'], 'delete');
 
         $results = $this->query($query);
 
@@ -888,9 +920,9 @@ class Database extends Di
         return $this->query('TRUNCATE TABLE '.$table);
     }
 
-    public function secureSql($value)
+    public function escape($value)
     {
-        return $this->self->securesql($value);
+        return $this->driver->escape($value);
     }
 
     /**
@@ -901,7 +933,7 @@ class Database extends Di
      */
     public function buildQuery($table, $params = [], $type = 'select')
     {
-        return $this->self->buildStatement($params, $table, $type);
+        return $this->driver->buildStatement($params, $table, $type);
     }
 
     /**
@@ -912,7 +944,7 @@ class Database extends Di
      */
     public function buildConditions($conditions = [])
     {
-        return $this->self->conditions($conditions);
+        return $this->driver->conditions($conditions);
     }
 
     /**
@@ -928,7 +960,7 @@ class Database extends Di
         if ($error) {
             $r .= "<span style = \"color:Red;\"><b>SQL Error:</b> {$error}</span>";
         }
-        $r .= '<b>Query:</b> '.$this->query;
+        $r .= '<b>Query:</b> '.$this->sql;
         $r .= '</p>';
 
         if ($echo) {

@@ -23,34 +23,34 @@ class DboSource extends DataSource
      *
      * @var string
      */
-    public $startQuote = '`';
+    protected $startQuote = '`';
 
     /**
      * End quote.
      *
      * @var string
      */
-    public $endQuote = '`';
+    protected $endQuote = '`';
 
     /**
      * index definition, primary, index, unique.
      *
      * @var array
      */
-    public $index = ['PRI' => 'primary', 'MUL' => 'index', 'UNI' => 'unique'];
+    protected $index = ['PRI' => 'primary', 'MUL' => 'index', 'UNI' => 'unique'];
     /**
      * Database keyword used to assign aliases to identifiers.
      *
      * @var string
      */
-    public $alias = 'AS ';
+    protected $alias = 'AS ';
 
     /**
      * Time the last query took.
      *
      * @var int
      */
-    public $took = null;
+    protected $took = null;
 
     /**
      * Result.
@@ -101,22 +101,22 @@ class DboSource extends DataSource
      *
      * @var array
      */
-    public $config = [];
+    protected $config = [];
 
     /**
      * Bypass automatic adding of joined fields/associations.
      *
      * @var bool
      */
-    public $__bypass = false;
+    protected $__bypass = false;
     /**
      * The set of valid SQL operations usable in a WHERE statement.
      *
      * @var array
      */
-    public $__sqlOps = ['like', 'ilike', 'or', 'not', 'in', 'between', 'regexp', 'similar to'];
+    protected $__sqlOps = ['like', 'ilike', 'or', 'not', 'in', 'between', 'regexp', 'similar to'];
 
-    public $_transactionStarted = false;
+    protected $transaction = false;
     /**
      * Index of basic SQL commands.
      *
@@ -701,7 +701,7 @@ class DboSource extends DataSource
         }
 
         if (is_string($data)) {
-            return   "'".$this->securesql($data)."'";
+            return   "'".$this->escape($data)."'";
         }
 
         if (is_null($data)) {
@@ -979,7 +979,7 @@ class DboSource extends DataSource
     public function begin()
     {
         if ($this->query($this->_commands['begin'])) {
-            $this->_transactionStarted = true;
+            $this->transaction = true;
 
             return true;
         }
@@ -999,7 +999,7 @@ class DboSource extends DataSource
     public function commit()
     {
         if ($this->query($this->_commands['commit'])) {
-            $this->_transactionStarted = false;
+            $this->transaction = false;
 
             return true;
         }
@@ -1019,7 +1019,7 @@ class DboSource extends DataSource
     public function rollback()
     {
         if ($this->query($this->_commands['rollback'])) {
-            $this->_transactionStarted = false;
+            $this->transaction = false;
 
             return true;
         }
@@ -1030,7 +1030,7 @@ class DboSource extends DataSource
     /**
      * Helper function.
      **/
-    public function securesql($str)
+    public function escape($str)
     {
         if ($str == '') {
             return;

@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database\Drivers;
 
 use Speedwork\Database\DboSource;
@@ -15,24 +16,21 @@ use Speedwork\Database\DboSource;
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class SqliteDriver  extends DboSource
+class SqliteDriver extends DboSource
 {
-    public $connection;
-    public $config = [];
-
     /**
      * Start quote.
      *
      * @var string
      */
-    public $startQuote = '"';
+    protected $startQuote = '"';
 
     /**
      * End quote.
      *
      * @var string
      */
-    public $endQuote = '"';
+    protected $endQuote = '"';
 
     /**
      * Keeps the transaction statistics of CREATE/UPDATE/DELETE queries.
@@ -46,7 +44,7 @@ class SqliteDriver  extends DboSource
      *
      * @var array
      */
-    public $_baseConfig = [
+    protected $_baseConfig = [
         'persistent' => true,
         'database'   => null,
     ];
@@ -56,7 +54,7 @@ class SqliteDriver  extends DboSource
      *
      * @var array
      */
-    public $_commands = [
+    protected $_commands = [
         'begin'    => 'BEGIN TRANSACTION',
         'commit'   => 'COMMIT TRANSACTION',
         'rollback' => 'ROLLBACK TRANSACTION',
@@ -160,7 +158,7 @@ class SqliteDriver  extends DboSource
      *
      * @return in
      */
-    public function insertId()
+    public function lastInsertId()
     {
         return sqlite_last_insert_rowid($this->connection);
     }
@@ -171,7 +169,7 @@ class SqliteDriver  extends DboSource
      *
      * @return int Number of affected rows
      */
-    public function affectedRows()
+    public function lastAffected()
     {
         if (!empty($this->_queryStats)) {
             foreach (['rows inserted', 'rows updated', 'rows deleted'] as $key) {
@@ -190,7 +188,7 @@ class SqliteDriver  extends DboSource
      *
      * @return int Number of rows in resultset
      */
-    public function numRows()
+    public function lastNumRows()
     {
         if ($this->hasResult()) {
             sqlite_num_rows($this->_result);
@@ -280,7 +278,7 @@ class SqliteDriver  extends DboSource
     /**
      * Helper function to clean the incoming values.
      **/
-    public function securesql($str)
+    public function escape($str)
     {
         if ($str == '') {
             return '';

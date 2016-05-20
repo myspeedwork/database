@@ -16,80 +16,77 @@ use Speedwork\Database\DboSource;
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class OracleDriver  extends DboSource
+class OracleDriver extends DboSource
 {
-    public $connection;
-    public $config = [];
-
     /**
      * Starting Quote.
      *
      * @var string
      */
-    public $startQuote = '';
+    protected $startQuote = '';
 
     /**
      * Ending Quote.
      *
      * @var string
      */
-    public $endQuote = '';
+    protected $endQuote = '';
 
     /**
      * Query limit.
      *
      * @var int
      */
-    public $_limit = -1;
+    protected $_limit = -1;
 
     /**
      * Query offset.
      *
      * @var int
      */
-    public $_offset = 0;
+    protected $_offset = 0;
 
     /**
      * Enter description here...
      *
      * @var unknown_type
      */
-    public $_map;
+    protected $_map;
 
     /**
      * Current Row.
      *
      * @var mixed
      */
-    public $_currentRow;
+    protected $_currentRow;
 
     /**
      * Number of rows.
      *
      * @var int
      */
-    public $_numRows;
+    protected $_numRows;
 
     /**
      * Query results.
      *
      * @var mixed
      */
-    public $_results;
+    protected $_results;
 
     /**
      * Last error issued by oci extension.
      *
      * @var unknown_type
      */
-    public $_error;
+    protected $_error;
 
     /**
      * Base configuration settings for MySQL driver.
      *
      * @var array
      */
-    public $_baseConfig = [
+    protected $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
         'username'   => 'system',
@@ -104,7 +101,7 @@ class OracleDriver  extends DboSource
  *
  * @var unknown_type
  */
-    public $_sequenceMap = [];
+    protected $_sequenceMap = [];
 
     /**
      * Connects to the database using options in the given configuration array.
@@ -217,7 +214,7 @@ class OracleDriver  extends DboSource
             return false;
         }
 
-        if ($this->__transactionStarted) {
+        if ($this->_transaction) {
             $mode = OCI_DEFAULT;
         } else {
             $mode = OCI_COMMIT_ON_SUCCESS;
@@ -234,8 +231,8 @@ class OracleDriver  extends DboSource
         switch (ocistatementtype($this->_statementId)) {
             case 'DESCRIBE':
             case 'SELECT':
-                $this->_scrapeSQL($sql);
-            break;
+                $this->scrapeSql($sql);
+                break;
             default:
                 return $this->_statementId;
             break;
@@ -260,7 +257,7 @@ class OracleDriver  extends DboSource
      *
      * @return in
      */
-    public function insertId($source)
+    public function lastInsertId($source)
     {
         $sequence = $this->_sequenceMap[$source];
         $sql      = "SELECT $sequence.currval FROM dual";
@@ -282,7 +279,7 @@ class OracleDriver  extends DboSource
      *
      * @return int Number of affected rows
      */
-    public function affectedRows()
+    public function lastAffected()
     {
         return $this->_statementId ? ocirowcount($this->_statementId) : false;
     }
@@ -293,7 +290,7 @@ class OracleDriver  extends DboSource
      *
      * @return int Number of rows in resultset
      */
-    public function numRows()
+    public function lastNumRows()
     {
         return $this->_numRows;
     }
@@ -409,7 +406,7 @@ class OracleDriver  extends DboSource
      */
     public function createTrigger($table)
     {
-        $sql = "CREATE OR REPLACE TRIGGER pk_$table"."_trigger BEFORE INSERT ON $table FOR EACH ROW BEGIN SELECT pk_$table.NEXTVAL INTO :NEW.ID FROM DUAL; END;";
+        $sql = 'CREATE OR REPLACE TRIGGER pk_'.$table."_trigger BEFORE INSERT ON $table FOR EACH ROW BEGIN SELECT pk_$table.NEXTVAL INTO :NEW.ID FROM DUAL; END;";
 
         return $this->query($sql);
     }
@@ -422,7 +419,7 @@ class OracleDriver  extends DboSource
      *
      * @return false if sql is nor a SELECT
      */
-    public function _scrapeSQL($sql)
+    public function scrapeSql($sql)
     {
         $sql           = str_replace('"', '', $sql);
         $preFrom       = preg_split('/\bFROM\b/', $sql);
@@ -513,7 +510,7 @@ class OracleDriver  extends DboSource
      */
     public function begin()
     {
-        $this->__transactionStarted = true;
+        $this->_transaction = true;
 
         return true;
     }
@@ -543,7 +540,7 @@ class OracleDriver  extends DboSource
      */
     public function commit()
     {
-        $this->__transactionStarted = false;
+        $this->_transaction = false;
 
         return ocicommit($this->connection);
     }

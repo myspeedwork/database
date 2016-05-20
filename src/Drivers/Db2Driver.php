@@ -16,31 +16,28 @@ use Speedwork\Database\DboSource;
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class Db2Driver  extends DboSource
+class Db2Driver extends DboSource
 {
-    public $connection;
-    public $config = [];
-
     /**
      * Starting Quote.
      *
      * @var string
      */
-    public $startQuote = '';
+    protected $startQuote = '';
 
     /**
      * Ending Quote.
      *
      * @var string
      */
-    public $endQuote = '';
+    protected $endQuote = '';
 
     /**
      * Base configuration settings for MySQL driver.
      *
      * @var array
      */
-    public $_baseConfig = [
+    protected $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
         'username'   => 'root',
@@ -158,9 +155,9 @@ class Db2Driver  extends DboSource
      *
      * @return in
      */
-    public function insertId()
+    public function lastInsertId()
     {
-        return @db2_last_insertId($this->connection);
+        return @db2_last_lastInsertId($this->connection);
     }
 
     /**
@@ -169,7 +166,7 @@ class Db2Driver  extends DboSource
      *
      * @return int Number of affected rows
      */
-    public function affectedRows()
+    public function lastAffected()
     {
         return ($this->_result) ? db2_num_rows($this->_result) : false;
     }
@@ -180,7 +177,7 @@ class Db2Driver  extends DboSource
      *
      * @return int Number of rows in resultset
      */
-    public function numRows()
+    public function lastNumRows()
     {
         return ($this->_result) ? db2_num_rows($this->_result) : false;
     }
@@ -276,7 +273,7 @@ class Db2Driver  extends DboSource
     /**
      * Helper function to clean the incoming values.
      **/
-    public function securesql($str)
+    public function escape($str)
     {
         if ($str == '') {
             return '';

@@ -18,43 +18,18 @@ use Speedwork\Database\DboSource;
  */
 class MysqliDriver extends DboSource
 {
-    public $connection;
-    public $config = [];
+    protected $startQuote = '`';
+    protected $endQuote   = '`';
+    protected $attempts   = 0;
 
-    /**
-     * Start quote.
-     *
-     * @var string
-     */
-    public $startQuote = '`';
-
-    /**
-     * End quote.
-     *
-     * @var string
-     */
-    public $endQuote = '`';
-
-    /**
-     * No of attemts to reconnect.
-     *
-     * @var int
-     */
-    protected $attempts = 3;
-
-    /**
-     * Base configuration settings for MySQL driver.
-     *
-     * @var array
-     */
-    public $_baseConfig = [
-        'persistent' => true,
+    protected $_baseConfig = [
+        'persistent' => false,
         'host'       => 'localhost',
         'username'   => 'root',
         'password'   => '',
         'database'   => 'logics',
         'port'       => '3306',
-        'charset'    => '',
+        'charset'    => 'UTF8',
         'timezone'   => '',
     ];
 
@@ -77,10 +52,11 @@ class MysqliDriver extends DboSource
             $config['port']   = null;
         }
 
-        $this->connection = @mysqli_connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $config['socket']);
+        $this->connection = mysqli_connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $config['socket']);
 
         if ($this->connection !== false) {
             $this->connected = true;
+            $this->attempts  = 0;
         }
 
         if (!empty($config['charset'])) {
@@ -109,7 +85,7 @@ class MysqliDriver extends DboSource
      *
      * @return bool True if the database could be disconnected, else false
      */
-    public function disconnect()
+    public function disConnect()
     {
         if (isset($this->results) && is_resource($this->results)) {
             mysqli_free_result($this->results);
@@ -121,14 +97,20 @@ class MysqliDriver extends DboSource
 
     public function fetch($sql)
     {
-        $data          = [];
         $this->_result = $this->query($sql);
 
-        while ($row = @mysqli_fetch_array($this->_result, MYSQLI_ASSOC)) {
-            $data[] = $row;
+        if (!$this->_result) {
+            return [];
         }
 
-        return $data;
+        $rows = [];
+        while ($row = mysqli_fetch_assoc($this->_result)) {
+            $rows[] = $row;
+        }
+
+        mysqli_free_result($this->_result);
+
+        return $rows;
     }
 
     /**
@@ -154,20 +136,31 @@ class MysqliDriver extends DboSource
      */
     public function query($sql)
     {
-        //if (preg_match('/^\s*call/i', $sql)) {
-        //	return $this->_executeProcedure($sql);
-        //}
-        $result = @mysqli_query($this->connection, $sql);
+        $result = mysqli_query($this->connection, $sql);
         if (!$result) {
-            $code  = @mysqli_errno($this->connection);
-            $codes = [2006];
-            if (in_array($code, $codes) && $this->attempts > 0) {
-                --$this->attempts;
+            $messages = [
+                'MySQL server has gone away',
+                'php_network_getaddresses: getaddrinfo failed:',
+            ];
+
+            $connect = false;
+            $error   = $this->lastError();
+
+            foreach ($messages as $message) {
+                if (strpos($error, $message) !== false) {
+                    $connect = true;
+                }
+            }
+
+            if ($connect && $this->attempts <= 3) {
+                ++$this->attempts;
                 $this->disconnect();
                 $this->connect();
 
                 return $this->query($sql);
             }
+
+            $this->logSqlError($sql);
         }
 
         return $result;
@@ -180,9 +173,9 @@ class MysqliDriver extends DboSource
      *
      * @return in
      */
-    public function insertId()
+    public function lastInsertId()
     {
-        return @mysqli_insert_id($this->connection);
+        return mysqli_insert_id($this->connection);
     }
 
     /**
@@ -191,7 +184,7 @@ class MysqliDriver extends DboSource
      *
      * @return int Number of affected rows
      */
-    public function affectedRows()
+    public function lastAffected()
     {
         if ($this->_result) {
             return mysqli_affected_rows($this->connection);
@@ -206,7 +199,7 @@ class MysqliDriver extends DboSource
      *
      * @return int Number of rows in resultset
      */
-    public function numRows()
+    public function lastNumRows()
     {
         if ($this->_result) {
             return mysqli_num_rows($this->_result);
@@ -248,7 +241,7 @@ class MysqliDriver extends DboSource
     /**
      * Helper function to clean the incoming values.
      **/
-    public function securesql($str)
+    public function escape($str)
     {
         if ($str == '') {
             return;

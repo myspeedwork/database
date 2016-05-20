@@ -16,31 +16,12 @@ use Speedwork\Database\DboSource;
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class MssqlDriver  extends DboSource
+class MssqlDriver extends DboSource
 {
-    public $connection;
-    public $config = [];
+    protected $startQuote = '[';
+    protected $endQuote   = ']';
 
-    /**
-     * Start quote.
-     *
-     * @var string
-     */
-    public $startQuote = '[';
-
-    /**
-     * End quote.
-     *
-     * @var string
-     */
-    public $endQuote = ']';
-
-    /**
-     * Base configuration settings for MySQL driver.
-     *
-     * @var array
-     */
-    public $_baseConfig = [
+    protected $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
         'username'   => 'root',
@@ -54,7 +35,7 @@ class MssqlDriver  extends DboSource
      *
      * @var array
      */
-    public $_commands = [
+    protected $_commands = [
         'begin'    => 'BEGIN TRANSACTION',
         'commit'   => 'COMMIT',
         'rollback' => 'ROLLBACK',
@@ -65,7 +46,7 @@ class MssqlDriver  extends DboSource
      *
      * @var string
      */
-    public $__lastQueryHadError = false;
+    protected $__lastQueryHadError = false;
 
     /**
      * Connects to the database using options in the given configuration array.
@@ -181,7 +162,7 @@ class MssqlDriver  extends DboSource
      *
      * @return in
      */
-    public function insertId()
+    public function lastInsertId()
     {
         return mssql_result(mysql_query('select SCOPE_IDENTITY()', $this->connection), 0, 0);
     }
@@ -192,7 +173,7 @@ class MssqlDriver  extends DboSource
      *
      * @return int Number of affected rows
      */
-    public function affectedRows()
+    public function lastAffected()
     {
         if ($this->_result) {
             return mssql_rows_affected($this->connection);
@@ -207,7 +188,7 @@ class MssqlDriver  extends DboSource
      *
      * @return int Number of rows in resultset
      */
-    public function numRows()
+    public function lastNumRows()
     {
         if ($this->_result) {
             return mssql_num_rows($this->_result);
@@ -354,7 +335,7 @@ class MssqlDriver  extends DboSource
     /**
      * Helper function to clean the incoming values.
      **/
-    public function securesql($str)
+    public function escape($str)
     {
         if ($str == '') {
             return '';

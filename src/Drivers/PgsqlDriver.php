@@ -18,29 +18,26 @@ use Speedwork\Database\DboSource;
  */
 class PgsqlDriver extends DboSource
 {
-    public $connection;
-    public $config = [];
-
     /**
      * Starting Quote.
      *
      * @var string
      */
-    public $startQuote = '"';
+    protected $startQuote = '"';
 
     /**
      * Ending Quote.
      *
      * @var string
      */
-    public $endQuote = '"';
+    protected $endQuote = '"';
 
     /**
      * Base configuration settings for MySQL driver.
      *
      * @var array
      */
-    public $_baseConfig = [
+    protected $_baseConfig = [
         'persistent' => true,
         'host'       => 'localhost',
         'username'   => 'root',
@@ -56,7 +53,7 @@ class PgsqlDriver extends DboSource
      *
      * @var array
      */
-    public $_commands = [
+    protected $_commands = [
         'begin'    => 'BEGIN',
         'commit'   => 'COMMIT',
         'rollback' => 'ROLLBACK',
@@ -162,7 +159,7 @@ class PgsqlDriver extends DboSource
      *
      * @return in
      */
-    public function insertId()
+    public function lastInsertId()
     {
         return @pg_last_oid($this->connection);
     }
@@ -173,7 +170,7 @@ class PgsqlDriver extends DboSource
      *
      * @return int Number of affected rows
      */
-    public function affectedRows()
+    public function lastAffected()
     {
         return ($this->_result) ? pg_affected_rows($this->_result) : false;
     }
@@ -184,7 +181,7 @@ class PgsqlDriver extends DboSource
      *
      * @return int Number of rows in resultset
      */
-    public function numRows()
+    public function lastNumRows()
     {
         return ($this->_result) ? pg_num_rows($this->_result) : false;
     }
@@ -280,7 +277,7 @@ class PgsqlDriver extends DboSource
     /**
      * Helper function to clean the incoming values.
      **/
-    public function securesql($str)
+    public function escape($str)
     {
         if ($str == '') {
             return '';

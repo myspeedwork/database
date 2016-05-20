@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * This file is part of the Speedwork framework.
+ *
+ * @link http://github.com/speedwork
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Speedwork\Database;
 
 use InvalidArgumentException;
@@ -16,26 +25,34 @@ class DatabaseServiceProvider extends ServiceProvider
     public function register(Container $di)
     {
         $di['database'] = function ($di) {
-            $database = new Database();
-
-            $connection = $database->connect($this->getConfig());
-
-            if (!$connection) {
-                return $this->handleError();
-            }
-
-            $database->setContainer($di);
-
-            register_shutdown_function(function () use ($database) {
-                $database->disConnect();
-            });
-
-            return $database;
+            return $this->getConnection();
         };
 
         $di['db'] = function ($app) {
             return $app['database'];
         };
+    }
+
+    protected function getConnection($name = 'default')
+    {
+        $config = $this->getConfig($name);
+
+        $wrapperClass = $config['wrapper'] ?: 'Database';
+
+        $connection = new $wrapperClass($config);
+        $connection->connect();
+
+        if (!$connection->isConnected()) {
+            return $this->handleError();
+        }
+
+        $connection->setContainer($this->app);
+
+        register_shutdown_function(function () use ($connection) {
+            $connection->disConnect();
+        });
+
+        return $connection;
     }
 
     protected function getConfig($name = null)
@@ -61,7 +78,7 @@ class DatabaseServiceProvider extends ServiceProvider
      *
      * @return string
      */
-    public function getDefaultConnection()
+    protected function getDefaultConnection()
     {
         return ($this->app['database.default']) ?: $this->app['config']['database.default'];
     }

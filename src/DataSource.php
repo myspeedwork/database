@@ -8,6 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
 namespace Speedwork\Database;
 
 /**
@@ -15,12 +16,14 @@ namespace Speedwork\Database;
  */
 class DataSource
 {
+    protected $connection = false;
+
     /**
      * Are we connected to the DataSource?
      *
      * @var bool
      */
-    public $connected = false;
+    protected $connected = false;
 
     /**
      * The default configuration of a specific DataSource.
@@ -48,14 +51,14 @@ class DataSource
      *
      * @var array
      */
-    public $config = [];
+    protected $config = [];
 
     /**
      * Whether or not this DataSource is in the middle of a transaction.
      *
      * @var bool
      */
-    protected $_transactionStarted = false;
+    protected $transaction = false;
 
     /**
      * Whether or not source data like available tables and schema descriptions
@@ -63,7 +66,7 @@ class DataSource
      *
      * @var bool
      */
-    public $cacheSources = true;
+    protected $cacheSources = true;
 
     /**
      * Constructor.
@@ -82,7 +85,7 @@ class DataSource
      */
     public function begin()
     {
-        return !$this->_transactionStarted;
+        return !$this->transaction;
     }
 
     /**
@@ -92,7 +95,7 @@ class DataSource
      */
     public function commit()
     {
-        return $this->_transactionStarted;
+        return $this->transaction;
     }
 
     /**
@@ -102,83 +105,7 @@ class DataSource
      */
     public function rollback()
     {
-        return $this->_transactionStarted;
-    }
-
-    /**
-     * Converts column types to basic types.
-     *
-     * @param string $real Real column type (i.e. "varchar(255)")
-     *
-     * @return string Abstract column type (i.e. "string")
-     */
-    public function column($real)
-    {
-        return false;
-    }
-
-    /**
-     * Used to create new records. The "C" CRUD.
-     *
-     * To-be-overridden in subclasses.
-     *
-     * @param Model $model  The Model to be created.
-     * @param array $fields An Array of fields to be saved.
-     * @param array $values An Array of values to save.
-     *
-     * @return bool success
-     */
-    public function create(Model $model, $fields = null, $values = null)
-    {
-        return false;
-    }
-
-    /**
-     * Used to read records from the Datasource. The "R" in CRUD.
-     *
-     * To-be-overridden in subclasses.
-     *
-     * @param Model $model     The model being read.
-     * @param array $queryData An array of query data used to find the data you want
-     * @param int   $recursive Number of levels of association
-     *
-     * @return mixed
-     */
-    public function read(Model $model, $queryData = [], $recursive = null)
-    {
-        return false;
-    }
-
-    /**
-     * Update a record(s) in the datasource.
-     *
-     * To-be-overridden in subclasses.
-     *
-     * @param Model $model      Instance of the model class being updated
-     * @param array $fields     Array of fields to be updated
-     * @param array $values     Array of values to be update $fields to.
-     * @param mixed $conditions
-     *
-     * @return bool Success
-     */
-    public function update(Model $model, $fields = null, $values = null, $conditions = null)
-    {
-        return false;
-    }
-
-    /**
-     * Delete a record(s) in the datasource.
-     *
-     * To-be-overridden in subclasses.
-     *
-     * @param Model $model      The model class having record(s) deleted
-     * @param mixed $conditions The conditions to use for deleting.
-     *
-     * @return bool Success
-     */
-    public function delete(Model $model, $id = null)
-    {
-        return false;
+        return $this->transaction;
     }
 
     /**
@@ -188,7 +115,7 @@ class DataSource
      *
      * @return mixed Last ID key generated in previous INSERT
      */
-    public function lastInsertId($source = null)
+    public function lastInsertId()
     {
         return false;
     }
@@ -200,7 +127,7 @@ class DataSource
      *
      * @return int Number of rows returned by last operation
      */
-    public function lastNumRows($source = null)
+    public function lastNumRows()
     {
         return false;
     }
@@ -212,7 +139,7 @@ class DataSource
      *
      * @return int Number of rows affected by last query.
      */
-    public function lastAffected($source = null)
+    public function lastAffected()
     {
         return false;
     }
@@ -260,12 +187,21 @@ class DataSource
         return $this->connected = false;
     }
 
+    protected function logSqlError($sql)
+    {
+        $message = $this->lastError().' : '.$sql;
+
+        //Log::write('sql', $message);
+
+        return true;
+    }
+
     /**
      * Closes the current datasource.
      */
     public function __destruct()
     {
-        if ($this->_transactionStarted) {
+        if ($this->transaction) {
             $this->rollback();
         }
         if ($this->connected) {
