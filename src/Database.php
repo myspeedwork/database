@@ -596,17 +596,11 @@ class Database extends Di
             $paging = 'api';
         }
 
-        $page = ($params['page'] && is_numeric($params['page']))
-            ? $params['page']
-            : !empty($this->data['page']) && is_numeric($this->data['page'])
-            ? $this->data['page']
-            : 1;
+        $page = ($this->data['page'] && is_numeric($this->data['page'])) ? $this->data['page'] : $params['page'];
+        $page = ($page && is_numeric($page)) ? $page : 1;
 
-        $limit = ($params['limit'] && is_numeric($params['limit']))
-            ? $params['limit']
-            : !empty($this->data['limit']) && is_numeric($this->data['limit'])
-            ? $this->data['limit']
-            : 25;
+        $limit = ($this->data['limit'] && is_numeric($this->data['limit'])) ? $this->data['limit'] : $params['limit'];
+        $limit = ($limit && is_numeric($limit)) ? $limit : 25;
 
         $limit_start = $limit * ($page - 1);
 
