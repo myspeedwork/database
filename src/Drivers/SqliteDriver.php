@@ -11,12 +11,10 @@
 
 namespace Speedwork\Database\Drivers;
 
-use Speedwork\Database\DboSource;
-
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class SqliteDriver extends DboSource
+class SqliteDriver extends DriverAbstract
 {
     protected $startQuote = '"';
     protected $endQuote   = '"';

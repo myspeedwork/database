@@ -11,14 +11,12 @@
 
 namespace Speedwork\Database\Drivers;
 
-use Speedwork\Database\DboSource;
-
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class MssqlDriver extends DboSource
+class MssqlDriver extends DriverAbstract
 {
-    private $lastError    = false;
+    protected $lastError  = false;
     protected $startQuote = '[';
     protected $endQuote   = ']';
     protected $baseConfig = [

@@ -11,12 +11,10 @@
 
 namespace Speedwork\Database\Drivers;
 
-use Speedwork\Database\DboSource;
-
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class Db2Driver extends DboSource
+class Db2Driver extends DriverAbstract
 {
     /**
      * Starting Quote.

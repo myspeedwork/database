@@ -11,12 +11,10 @@
 
 namespace Speedwork\Database\Drivers;
 
-use Speedwork\Database\DboSource;
-
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class MysqliDriver extends DboSource
+class MysqliDriver extends DriverAbstract
 {
     protected $startQuote = '`';
     protected $endQuote   = '`';

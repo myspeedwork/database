@@ -38,9 +38,11 @@ class DatabaseServiceProvider extends ServiceProvider
         $config = $this->getConfig($name);
 
         $wrapperClass = $config['wrapper'] ?: '\\Speedwork\\Database\\Database';
+        $helpers      = $this->getSettings('database.helpers');
 
         $connection = new $wrapperClass();
         $connection->setConfig($config);
+        $connection->setHelpers($helpers);
         $connection->connect();
 
         if (!$connection->isConnected()) {
@@ -63,7 +65,7 @@ class DatabaseServiceProvider extends ServiceProvider
         // To get the database connection configuration, we will just pull each of the
         // connection configurations and get the configurations for the given name.
         // If the configuration doesn't exist, we'll throw an exception and bail.
-        $connections = ($this->app['database.connections']) ?: $this->app['config']['database.connections'];
+        $connections = $this->getSettings('database.connections');
 
         $config = $connections[$name];
 

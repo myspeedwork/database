@@ -9,14 +9,14 @@
  * file that was distributed with this source code.
  */
 
-namespace Speedwork\Database;
+namespace Speedwork\Database\Drivers;
 
 use Speedwork\Util\Str;
 
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-abstract class DboSource
+abstract class DriverAbstract
 {
     /**
      * Start quote.
@@ -402,11 +402,10 @@ abstract class DboSource
      *
      * @return string SQL fragment
      */
-    public function conditionKeysToString($conditions, $quoteValues = true, $model = null)
+    public function conditionKeysToString($conditions, $quoteValues = true)
     {
-        $c    = 0;
         $out  = [];
-        $data = $columnType = null;
+        $data = null;
         $bool = ['and', 'or', 'not', 'and not', 'or not', 'xor', '||', '&&'];
 
         foreach ($conditions as $key => $value) {
@@ -430,7 +429,7 @@ abstract class DboSource
                 } else {
                     $key = $join;
                 }
-                $value = $this->conditionKeysToString($value, $quoteValues, $model);
+                $value = $this->conditionKeysToString($value, $quoteValues);
 
                 if (strpos($join, 'NOT') !== false) {
                     if (strtoupper(trim($key)) == 'NOT') {
@@ -463,14 +462,16 @@ abstract class DboSource
                     if (array_keys($value) === array_values(array_keys($value))) {
                         $data = $this->quoteFields($key).' IN (';
                         if ($quoteValues || strpos($value[0], '-!') !== 0) {
-                            if (is_object($model)) {
-                                $columnType = $model->getColumnType($key);
+                            $value = $this->value($value);
+                            if (!empty($value)) {
+                                $data .= implode(', ', $value);
+                            } else {
+                                $data = "''";
                             }
-                            $data .= implode(', ', $this->value($value, $columnType));
                         }
                         $data .= ')';
                     } else {
-                        $ret = $this->conditionKeysToString($value, $quoteValues, $model);
+                        $ret = $this->conditionKeysToString($value, $quoteValues);
                         if (count($ret) > 1) {
                             $data = '('.implode(') AND (', $ret).')';
                         } elseif (isset($ret[0])) {
@@ -480,7 +481,7 @@ abstract class DboSource
                 } elseif (is_numeric($key) && !empty($value)) {
                     $data = $this->quoteFields($value);
                 } else {
-                    $data = $this->parseKey($model, trim($key), $value);
+                    $data = $this->parseKey(trim($key), $value);
                 }
 
                 if ($data != null) {
@@ -491,7 +492,6 @@ abstract class DboSource
                     $data  = null;
                 }
             }
-            ++$c;
         }
 
         return $out;
@@ -507,7 +507,7 @@ abstract class DboSource
      *
      * @return string
      */
-    protected function parseKey($model, $key, $value)
+    protected function parseKey($key, $value)
     {
         $operatorMatch = '/^(('.implode(')|(', $this->sqlOps);
         $operatorMatch .= '\\x20)|<[>=]?(?![^>]+>)\\x20?|[>=!]{1,3}(?!<)\\x20?)/is';
@@ -532,7 +532,7 @@ abstract class DboSource
 
         if (strtolower($operator) === 'not') {
             $data = $this->conditionKeysToString(
-                [$operator => [$key => $value]], true, $model
+                [$operator => [$key => $value]], true
             );
 
             return $data[0];
@@ -566,7 +566,11 @@ abstract class DboSource
                     $operator = 'NOT IN';
                     break;
             }
-            $value = "({$value})";
+            if (!empty($value)) {
+                $value = "({$value})";
+            } else {
+                $value = "('')";
+            }
         } elseif ($null || $value === 'NULL') {
             switch ($operator) {
                 case '=':

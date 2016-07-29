@@ -19,6 +19,7 @@ class MasterSlave extends Database
     protected $connections = [];
     protected $params      = [];
     protected $split       = false;
+    protected $transaction = false;
 
     public function __construct($params = [])
     {
@@ -54,11 +55,7 @@ class MasterSlave extends Database
 
     public function connect()
     {
-        $connectTo = 'slave';
-
-        if ($this->split) {
-            $connectTo = $this->getConnection('SELECT');
-        }
+        $connectTo = $this->getConnection('SELECT', 'slave');
 
         return $this->connectTo($connectTo);
     }
@@ -85,9 +82,10 @@ class MasterSlave extends Database
 
     public function getFromDB($sql)
     {
-        $connectTo = 'slave';
-        if ($this->split) {
-            $connectTo = $this->getConnection($sql);
+        if ($this->transaction) {
+            $connectTo = 'master';
+        } else {
+            $connectTo = $this->getConnection($sql, 'slave');
         }
 
         $this->connectTo($connectTo);
@@ -97,16 +95,26 @@ class MasterSlave extends Database
 
     public function query($sql)
     {
-        if ($this->split) {
-            $connectTo = $this->getConnection($sql);
-        } else {
-            if (strtoupper(substr(trim($sql), 0, 7)) == 'SELECT '
-                || strtoupper(substr(trim($sql), 0, 4)) == 'SET '
-                ) {
+        $sql  = explode(' ', $sql, 2);
+        $type = trim(strtoupper($sql[0]));
+
+        if ($type == 'DROP') {
+            $this->transaction = false;
+        }
+
+        if ($type == 'CREATE') {
+            $this->transaction = true;
+        }
+
+        if (!$this->transaction) {
+            if ($type == 'SELECT' || $type == 'SET') {
                 $connectTo = 'slave';
             } else {
                 $connectTo = 'master';
             }
+            $connectTo = $this->getConnection($sql, $connectTo);
+        } else {
+            $connectTo = 'master';
         }
 
         $this->connectTo($connectTo);
@@ -114,8 +122,12 @@ class MasterSlave extends Database
         return parent::query($sql);
     }
 
-    protected function getConnection($sql)
+    protected function getConnection($sql, $default = 'slave')
     {
+        if (!$this->split) {
+            return $default;
+        }
+
         $sql  = explode(' ', $sql, 2);
         $type = trim(strtolower($sql[0]));
 

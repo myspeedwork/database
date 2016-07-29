@@ -20,23 +20,85 @@ use Speedwork\Util\Pagination;
  */
 class Database extends Di
 {
-    private $cache     = false;
-    private $connected = false;
-    private $driver;
-    private $config = [];
-    private $prefix;
-    private $sql;
+    protected $cache     = false;
+    protected $connected = false;
+    protected $config    = [];
+    protected $helpers   = [];
+    protected $prefix;
+    protected $sql;
+    protected $driver;
 
-    public function setConfig($config = [])
+    /**
+     * Set helper names which executes in query formation.
+     *
+     * @param array $helpers List of helper names with key
+     * @param bool  $reset   Reset the old helpers or not
+     */
+    public function setHelpers($helpers = [], $reset = false)
     {
-        $this->config = $config;
+        if (is_array($helpers)) {
+            if ($reset) {
+                $this->helpers = $helpers;
+            } else {
+                $this->helpers = array_merge($this->helpers, $helpers);
+            }
+        }
+
+        return $this;
     }
 
+    /**
+     * Get the stored helpers with helper of key.
+     *
+     * @param string $type Type of helpers to return
+     *
+     * @return array List of helpers
+     */
+    protected function getHelpers($type)
+    {
+        //$helpers = $this->helpers[$type];
+        $helpers = config('database.helpers.'.$type);
+        if (!is_array($helpers)) {
+            return [];
+        }
+
+        return $helpers;
+    }
+
+    /**
+     * Set configuration to create database connection object.
+     *
+     * @param array $config Db configuration
+     * @param bool  $reset  Reset the old config or not
+     */
+    public function setConfig($config = [], $reset = true)
+    {
+        if (is_array($config)) {
+            if ($reset) {
+                $this->config = $config;
+            } else {
+                $this->config = array_merge($this->config, $config);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the stored configuration.
+     *
+     * @return array List of configuration
+     */
     public function getConfig()
     {
         return $this->config;
     }
 
+    /**
+     * Connect to the database driver.
+     *
+     * @return object Return database driver object
+     */
     public function connect()
     {
         $config = $this->config;
@@ -54,6 +116,11 @@ class Database extends Di
         return $this->driver;
     }
 
+    /**
+     * Check whether connect made was success or not.
+     *
+     * @return bool Return true on success and false on fail
+     */
     public function isConnected()
     {
         if ($this->connected === false) {
@@ -66,7 +133,7 @@ class Database extends Di
     }
 
     /**
-     * disconnect from driver.
+     * Disconnect from driver.
      */
     public function disConnect()
     {
@@ -101,11 +168,11 @@ class Database extends Di
      * fetch() is used to retrieve a dataset. fetch() determines whether to use the
      * cache or not, and queries either the database or the cache file accordingly.
      *
-     * @param string $sql
-     * @param int|string cache time
-     * @param string $name(optional) if name is empty i will take md5 of the sql
+     * @param string     $sql
+     * @param int|string $duration       cache time
+     * @param string     $name(optional) if name is empty i will take md5 of the sql
      *
-     * @return array|false
+     * @return array
      **/
     public function fetch($sql, $duration = null, $name = null)
     {
@@ -117,20 +184,43 @@ class Database extends Di
 
         $this->sql = $sql;
 
-        if ($this->cache == false || empty($duration)) {
-            return $this->getFromDb($sql);
+        if ($this->cache === false || empty($duration)) {
+            return $this->fetchFromDb($sql);
         }
 
         $cache_key = $name ?: md5($sql);
         $cache_key = 'db_'.$cache_key;
 
         return $this->get('cache')->remember($cache_key, function () use ($sql) {
-              return $this->getFromDb($sql);
+            return $this->fetchFromDb($sql);
         }, $duration);
 
-        return $this->getFromDb($sql);
+        return $this->fetchFromDb($sql);
     }
 
+    /**
+     * Retrive the all record from dataset.
+     *
+     * @param string     $sql            Database query
+     * @param int|string $duration       cache time
+     * @param string     $name(optional) if name is empty i will take md5 of the sql
+     *
+     * @return array Results set
+     */
+    public function fetchAll($sql, $duration = null, $name = null)
+    {
+        return $this->fetch($sql, $duration, $name);
+    }
+
+    /**
+     * Retrive the single record from dataset.
+     *
+     * @param string     $sql            Database query
+     * @param int|string $duration       cache time
+     * @param string     $name(optional) if name is empty i will take md5 of the sql
+     *
+     * @return array Result set
+     */
     public function fetchAssoc($sql, $duration = null, $name = null)
     {
         $data = $this->fetch($sql, $duration, $name);
@@ -138,12 +228,14 @@ class Database extends Di
         return $data[0];
     }
 
-    public function fetchAll($sql, $duration = null, $name = null)
-    {
-        return $this->fetch($sql, $duration, $name);
-    }
-
-    protected function getFromDb($sql)
+    /**
+     * Retrive the results set from database driver.
+     *
+     * @param string $sql Sql Query
+     *
+     * @return array Results set
+     */
+    protected function fetchFromDb($sql)
     {
         return $this->driver->fetch($sql);
     }
@@ -205,6 +297,11 @@ class Database extends Di
         return $this->driver->query($sql);
     }
 
+    /**
+     * Returns the last database error.
+     *
+     * @return string
+     */
     public function lastError()
     {
         return $this->driver->lastError();
@@ -212,8 +309,6 @@ class Database extends Di
 
     /**
      * Returns the ID generated from the previous INSERT operation.
-     *
-     * @param mixed $source
      *
      * @return mixed Last ID key generated in previous INSERT
      */
@@ -225,8 +320,6 @@ class Database extends Di
     /**
      * Returns the number of rows returned by last operation.
      *
-     * @param mixed $source
-     *
      * @return int Number of rows returned by last operation
      */
     public function lastNumRows()
@@ -236,8 +329,6 @@ class Database extends Di
 
     /**
      * Returns the number of rows affected by last query.
-     *
-     * @param mixed $source
      *
      * @return int Number of rows affected by last query.
      */
@@ -257,7 +348,7 @@ class Database extends Di
     }
 
     /**
-     * This is like fetch this will generate query and outout the results.
+     * This is like fetch this will generate query and output the results.
      *
      * @param string $table
      * @param string $type
@@ -276,15 +367,12 @@ class Database extends Di
 
         $params['table'] = $table;
         $params['type']  = $type;
-        //dont' conside nagitive values
+        //don't consider nagitive values
         if ($params['limit'] < 0) {
             unset($params['limit']);
         }
 
-        $helpers = config('database.helpers.find');
-        if (!is_array($helpers)) {
-            $helpers = [];
-        }
+        $helpers = $this->getHelpers('find');
 
         if (is_array($params['helpers'])) {
             $helpers = array_merge($helpers, $params['helpers']);
@@ -492,7 +580,7 @@ class Database extends Di
      * @param array $parentTag
     */
 
-    private function buildThreaded($parent, $menuData, $replace, $parentTag)
+    protected function buildThreaded($parent, $menuData, $replace, $parentTag)
     {
         $html = '';
         $html .= $parentTag[0];
@@ -527,7 +615,7 @@ class Database extends Di
         return $html;
     }
 
-    public function findTables($tables = [], $type = 'all', $params = [])
+    protected function findTables($tables = [], $type = 'all', $params = [])
     {
         if ($type == 'count') {
             $total = 0;
@@ -687,10 +775,7 @@ class Database extends Di
             return false;
         }
 
-        $helpers = config('database.helpers.save');
-        if (!is_array($helpers)) {
-            $helpers = [];
-        }
+        $helpers = $this->getHelpers('save');
 
         if (is_array($details['helpers'])) {
             $helpers = array_merge($helpers, $details['helpers']);
@@ -769,11 +854,7 @@ class Database extends Di
         $params['fields']     = $data;
         $params['conditions'] = $conditions;
 
-        //check is there any callback helper in this Query
-        $helpers = config('database.helpers.update');
-        if (!is_array($helpers)) {
-            $helpers = [];
-        }
+        $helpers = $this->getHelpers('update');
 
         if (is_array($details['helpers'])) {
             $helpers = array_merge($helpers, $details['helpers']);
@@ -851,11 +932,7 @@ class Database extends Di
             $params['limit'] = $details['limit'];
         }
 
-        //check is there any callback helper in this Query
-        $helpers = config('database.helpers.delete');
-        if (!is_array($helpers)) {
-            $helpers = [];
-        }
+        $helpers = $this->getHelpers('delete');
 
         if (is_array($details['helpers'])) {
             $helpers = array_merge($helpers, $details['helpers']);

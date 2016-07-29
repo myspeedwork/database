@@ -11,12 +11,10 @@
 
 namespace Speedwork\Database\Drivers;
 
-use Speedwork\Database\DboSource;
-
 /**
  * @author sankar <sankar.suda@gmail.com>
  */
-class PgsqlDriver extends DboSource
+class PgsqlDriver extends DriverAbstract
 {
     /**
      * Starting Quote.
