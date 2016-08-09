@@ -1101,9 +1101,10 @@ abstract class DriverAbstract
 
     protected function logSqlError($sql)
     {
-        $message = $this->lastError().' : '.$sql;
-
-        //Log::write('sql', $message);
+        if ($this->has('logger')) {
+            $message = $this->lastError().' : '.$sql;
+            $this->get('logger')->error($message);
+        }
 
         return true;
     }

@@ -95,8 +95,8 @@ class MasterSlave extends Database
 
     public function query($sql)
     {
-        $sql  = explode(' ', $sql, 2);
-        $type = trim(strtoupper($sql[0]));
+        $parts = explode(' ', $sql, 2);
+        $type  = trim(strtoupper($parts[0]));
 
         if ($type == 'DROP') {
             $this->transaction = false;
