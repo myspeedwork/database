@@ -6,9 +6,8 @@
  * @link http://github.com/speedwork
  *
  * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * file that was distributed with this source code
  */
-
 namespace Speedwork\Database\Drivers;
 
 use Speedwork\Util\Str;
@@ -106,7 +105,7 @@ abstract class DriverAbstract
      * are satisfied. Often used from connect() to check for support
      * before establishing a connection.
      *
-     * @return bool Whether or not the Datasources conditions for use are met.
+     * @return bool Whether or not the Datasources conditions for use are met
      */
     public function enabled()
     {
@@ -166,7 +165,7 @@ abstract class DriverAbstract
      *
      * @param mixed $source
      *
-     * @return int Number of rows affected by last query.
+     * @return int Number of rows affected by last query
      */
     abstract public function lastAffected();
 
@@ -249,6 +248,7 @@ abstract class DriverAbstract
     {
         return $this->buildStatement($query, $table, $type);
     }
+
     /**
      * Renders a final SQL JOIN statement.
      *
@@ -343,12 +343,13 @@ abstract class DriverAbstract
             break;
         }
     }
+
     /**
      * Creates a WHERE clause by parsing given conditions data.  If an array or string
      * conditions are provided those conditions will be parsed and quoted.  If a boolean
      * is given it will be integer cast as condition.  Null will return 1 = 1.
      *
-     * @param mixed $conditions  Array or string of conditions, or any value.
+     * @param mixed $conditions  Array or string of conditions, or any value
      * @param bool  $quoteValues If true, values should be quoted
      * @param bool  $where       If true, "WHERE " will be prepended to the return value
      * @param Model $model       A reference to the Model instance making the query
@@ -586,6 +587,7 @@ abstract class DriverAbstract
 
         return "{$key} {$operator} {$value}";
     }
+
     /**
      * Quotes Model.fields.
      *
@@ -621,6 +623,7 @@ abstract class DriverAbstract
 
         return $original;
     }
+
     /**
      * Returns a limit statement in the correct format for the particular database.
      *
@@ -649,9 +652,8 @@ abstract class DriverAbstract
 
             return $rt;
         }
-
-        return;
     }
+
     /**
      * Returns an ORDER BY clause as a string.
      *
@@ -742,17 +744,16 @@ abstract class DriverAbstract
 
             return ' GROUP BY '.$this->quoteFields($group);
         }
-
-        return;
     }
+
     /**
      * Prepares a value, or an array of values for database queries by quoting and escaping them.
      *
-     * @param mixed  $data   A value or an array of values to prepare.
+     * @param mixed  $data   A value or an array of values to prepare
      * @param string $column The column into which this data will be inserted
      * @param bool   $read   Value to be used in READ or WRITE context
      *
-     * @return mixed Prepared value or array of values.
+     * @return mixed Prepared value or array of values
      */
     public function value($data, $column = null, $read = true)
     {
@@ -785,6 +786,7 @@ abstract class DriverAbstract
 
         return $data;
     }
+
     /**
      * Returns a quoted name of $data for use in an SQL statement.
      * Strips fields out of SQL functions before quoting.
@@ -1000,7 +1002,7 @@ abstract class DriverAbstract
      *
      * @param mixed $table A string or model class representing the table to be truncated
      *
-     * @return bool SQL TRUNCATE TABLE statement, false if not applicable.
+     * @return bool SQL TRUNCATE TABLE statement, false if not applicable
      */
     public function truncate($table)
     {
@@ -1046,7 +1048,7 @@ abstract class DriverAbstract
      *
      * @return bool True on success, false on fail
      *              (i.e. if the database/model does not support transactions,
-     *              or a transaction has not started).
+     *              or a transaction has not started)
      */
     public function begin()
     {
@@ -1066,7 +1068,7 @@ abstract class DriverAbstract
      *
      * @return bool True on success, false on fail
      *              (i.e. if the database/model does not support transactions,
-     *              or a transaction has not started).
+     *              or a transaction has not started)
      */
     public function commit()
     {
@@ -1086,7 +1088,7 @@ abstract class DriverAbstract
      *
      * @return bool True on success, false on fail
      *              (i.e. if the database/model does not support transactions,
-     *              or a transaction has not started).
+     *              or a transaction has not started)
      */
     public function rollback()
     {

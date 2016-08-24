@@ -6,9 +6,8 @@
  * @link http://github.com/speedwork
  *
  * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * file that was distributed with this source code
  */
-
 namespace Speedwork\Database;
 
 use Exception;
@@ -247,7 +246,7 @@ class Database extends Di
      *
      * @return bool True on success, false on fail
      *              (i.e. if the database/model does not support transactions,
-     *              or a transaction has not started).
+     *              or a transaction has not started)
      */
     public function begin()
     {
@@ -261,7 +260,7 @@ class Database extends Di
      *
      * @return bool True on success, false on fail
      *              (i.e. if the database/model does not support transactions,
-     *              or a transaction has not started).
+     *              or a transaction has not started)
      */
     public function commit()
     {
@@ -275,7 +274,7 @@ class Database extends Di
      *
      * @return bool True on success, false on fail
      *              (i.e. if the database/model does not support transactions,
-     *              or a transaction has not started).
+     *              or a transaction has not started)
      */
     public function rollback()
     {
@@ -330,7 +329,7 @@ class Database extends Di
     /**
      * Returns the number of rows affected by last query.
      *
-     * @return int Number of rows affected by last query.
+     * @return int Number of rows affected by last query
      */
     public function lastAffected()
     {
@@ -533,7 +532,7 @@ class Database extends Di
                 $query = $this->driver->buildStatement($params, $table);
                 $data  = $this->fetch($query, $cache, $cache_name);
 
-                $menuData = ['items' => [],'parents' => []];
+                $menuData = ['items' => [], 'parents' => []];
                 foreach ($data as $menuItem) {
                     // Creates entry into items array with current menu item id ie. $menuData['items'][1]
                     $menuData['items'][$menuItem[$params['field'][0]]] = $menuItem;
@@ -974,7 +973,7 @@ class Database extends Di
      *
      * @param mixed $table A string or model class representing the table to be truncated
      *
-     * @return bool SQL TRUNCATE TABLE statement, false if not applicable.
+     * @return bool SQL TRUNCATE TABLE statement, false if not applicable
      */
     public function truncate($table)
     {
@@ -1012,7 +1011,7 @@ class Database extends Di
      * Output information about an SQL query. The SQL statement, number of rows in resultset,
      * and execution time in microseconds. If the query fails, an error is output instead.
      *
-     * @param string $sql Query to show information on.
+     * @param string $sql Query to show information on
      */
     public function showQuery($echo = false)
     {
