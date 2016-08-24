@@ -6,9 +6,8 @@
  * @link http://github.com/speedwork
  *
  * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * file that was distributed with this source code
  */
-
 namespace Speedwork\Database\Drivers;
 
 /**
@@ -129,8 +128,6 @@ class SqliteDriver extends DriverAbstract
         if ($error) {
             return $error.': '.sqlite_error_string($error);
         }
-
-        return;
     }
 
     /**
@@ -186,8 +183,6 @@ class SqliteDriver extends DriverAbstract
 
             return $rt;
         }
-
-        return;
     }
 
     /**

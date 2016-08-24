@@ -6,9 +6,8 @@
  * @link http://github.com/speedwork
  *
  * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * file that was distributed with this source code
  */
-
 namespace Speedwork\Database\Drivers;
 
 /**
@@ -150,8 +149,6 @@ class MysqliDriver extends DriverAbstract
         if ($this->connection && mysqli_errno($this->connection)) {
             return mysqli_errno($this->connection).': '.mysqli_error($this->connection);
         }
-
-        return;
     }
 
     /**
@@ -170,8 +167,6 @@ class MysqliDriver extends DriverAbstract
         if ($this->result) {
             return mysqli_affected_rows($this->connection);
         }
-
-        return;
     }
 
     /**
@@ -182,8 +177,6 @@ class MysqliDriver extends DriverAbstract
         if ($this->result) {
             return mysqli_num_rows($this->result);
         }
-
-        return;
     }
 
     /**

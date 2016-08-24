@@ -6,9 +6,8 @@
  * @link http://github.com/speedwork
  *
  * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * file that was distributed with this source code
  */
-
 namespace Speedwork\Database\Drivers;
 
 /**
@@ -127,8 +126,6 @@ class MssqlDriver extends DriverAbstract
                 return $error;
             }
         }
-
-        return;
     }
 
     /**
@@ -147,8 +144,6 @@ class MssqlDriver extends DriverAbstract
         if ($this->result) {
             return mssql_rows_affected($this->connection);
         }
-
-        return;
     }
 
     /**
@@ -159,8 +154,6 @@ class MssqlDriver extends DriverAbstract
         if ($this->result) {
             return mssql_num_rows($this->result);
         }
-
-        return;
     }
 
     /**
@@ -180,8 +173,6 @@ class MssqlDriver extends DriverAbstract
 
             return $rt;
         }
-
-        return;
     }
 
     /**
