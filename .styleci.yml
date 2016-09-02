@@ -1,0 +1,24 @@
+preset: symfony
+
+risky: false
+
+linting: true
+
+enabled:
+    - align_equals
+    - align_double_arrow
+    - short_array_syntax
+    - ordered_imports
+    - no_useless_return
+    - phpdoc_order
+    - combine_consecutive_unsets
+
+disabled:
+  - unalign_double_arrow
+  - unalign_equals
+
+finder:
+  exclude:
+    - "tests"
+  path:
+    - "src"

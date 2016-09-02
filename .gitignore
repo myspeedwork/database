@@ -1,0 +1,21 @@
+# Project Files
+.buildpath
+.idea
+.project
+.settings
+*.sublime-project
+*.sublime-workspace
+composer.phar
+
+# OS Files
+.DS_Store
+Thumbs.db
+._*
+.nfs*p.
+*~
+*.bak
+desktop.ini
+
+vendor
+build
+

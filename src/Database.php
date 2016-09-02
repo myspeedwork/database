@@ -1,13 +1,14 @@
 <?php
 
-/**
- * This file is part of the Speedwork framework.
+/*
+ * This file is part of the Speedwork package.
  *
- * @link http://github.com/speedwork
+ * (c) Sankar <sankar.suda@gmail.com>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code
  */
+
 namespace Speedwork\Database;
 
 use Exception;
@@ -602,11 +603,11 @@ class Database extends Di
                     $v   = $data[$match[1]];
                     $hts = str_replace($k, $v, $hts);
                 }
-                $html .=  $hts;
+                $html .= $hts;
                 if (isset($menuData['parents'][$itemId])) {
                     $html .= $this->buildThreaded($itemId, $menuData, $replace, $parentTag);
                 }
-                $html .=  $end_tag;
+                $html .= $end_tag;
             }
         }
         $html .= $parentTag[1];

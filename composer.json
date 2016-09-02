@@ -15,6 +15,10 @@
         "speedwork/core" : "dev-master",
         "speedwork/util" : "dev-master"
     },
+    "require-dev" : {
+        "phpunit/phpunit": "~3.7",
+        "satooshi/php-coveralls": "dev-master"
+    },
     "autoload" : {
         "psr-4": { "Speedwork\\Database\\": "src" }
     },
