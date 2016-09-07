@@ -89,12 +89,13 @@ class DatabaseServiceProvider extends ServiceProvider
     protected function handleError()
     {
         if (php_sapi_name() == 'cli' || $this->app['is_api_request']) {
+            header('Content-Type: application/json');
             echo json_encode([
                 'status'  => 'ERROR',
                 'message' => 'database was gone away',
             ]);
         } else {
-            $path = SYS.'public'.DS.'templates'.DS.'system'.DS.'databasegone.tpl';
+            $path = _THEME_BASE.'system'.DS.'dbgone.tpl';
             echo file_get_contents($path);
             echo '<!-- Database was gone away... -->';
         }

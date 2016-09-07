@@ -18,6 +18,7 @@ use Speedwork\Util\Str;
  */
 abstract class DriverAbstract
 {
+    protected $di;
     /**
      * Start quote.
      *
@@ -205,6 +206,11 @@ abstract class DriverAbstract
     public function getConfig()
     {
         return $this->config;
+    }
+
+    public function setContainer($di)
+    {
+        $this->di = $di;
     }
 
     /**

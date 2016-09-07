@@ -111,6 +111,7 @@ class Database extends Di
 
         $this->driver = new $database();
         $this->driver->setConfig($config);
+        $this->driver->setContainer($this->di);
         $this->connected = $this->driver->connect();
 
         return $this->driver;
