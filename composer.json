@@ -8,7 +8,7 @@
         "email": "sankar.suda@gmail.com"
     }],
     "require": {
-        "php": ">=5.6",
+        "php": ">=5.5",
         "speedwork/container": "~1.0",
         "speedwork/core": "~1.0",
         "speedwork/util": "~1.0"
