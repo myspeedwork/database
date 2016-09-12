@@ -27,6 +27,6 @@ return PhpCsFixer\Config::create()
     ))
     ->finder(
         PhpCsFixer\Finder::create()
-            ->exclude('tests')
+            ->exclude(__DIR__.'/tests')
             ->in(__DIR__.'/src'))
 ;

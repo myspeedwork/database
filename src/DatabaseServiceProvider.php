@@ -41,6 +41,7 @@ class DatabaseServiceProvider extends ServiceProvider
         $helpers      = $this->getSettings('database.helpers');
 
         $connection = new $wrapperClass();
+        $connection->setContainer($this->app);
         $connection->setConfig($config);
         $connection->setHelpers($helpers);
         $connection->connect();
@@ -49,11 +50,11 @@ class DatabaseServiceProvider extends ServiceProvider
             return $this->handleError();
         }
 
-        $connection->setContainer($this->app);
-
-        register_shutdown_function(function () use ($connection) {
-            $connection->disConnect();
-        });
+        register_shutdown_function(
+            function () use ($connection) {
+                $connection->disConnect();
+            }
+        );
 
         return $connection;
     }
@@ -90,12 +91,14 @@ class DatabaseServiceProvider extends ServiceProvider
     {
         if (php_sapi_name() == 'cli' || $this->app['is_api_request']) {
             header('Content-Type: application/json');
-            echo json_encode([
+            echo json_encode(
+                [
                 'status'  => 'ERROR',
                 'message' => 'database was gone away',
-            ]);
+                ]
+            );
         } else {
-            $path = _THEME_BASE.'system'.DS.'dbgone.tpl';
+            $path = THEMES.'system'.DS.'dbgone.tpl';
             echo file_get_contents($path);
             echo '<!-- Database was gone away... -->';
         }

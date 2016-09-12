@@ -45,7 +45,7 @@ class MysqliDriver extends DriverAbstract
     {
         $config = $this->config;
 
-        $config          = @array_merge($this->baseConfig, $config);
+        $config          = array_merge($this->baseConfig, $config);
         $this->connected = false;
 
         if (is_numeric($config['port'])) {

@@ -11,6 +11,7 @@
 
 namespace Speedwork\Database\Drivers;
 
+use Speedwork\Container\Container;
 use Speedwork\Util\Str;
 
 /**
@@ -18,7 +19,7 @@ use Speedwork\Util\Str;
  */
 abstract class DriverAbstract
 {
-    protected $di;
+    protected $container;
     /**
      * Start quote.
      *
@@ -208,9 +209,9 @@ abstract class DriverAbstract
         return $this->config;
     }
 
-    public function setContainer($di)
+    public function setContainer(Container $container)
     {
-        $this->di = $di;
+        $this->container = $container;
     }
 
     /**
@@ -235,7 +236,8 @@ abstract class DriverAbstract
             }
         }
 
-        return $this->renderStatement($type, [
+        return $this->renderStatement(
+            $type, [
             'conditions' => $this->conditions($query['conditions'], true, true),
             'fields'     => (count($query['fields']) > 0) ? @implode(', ', $query['fields']) : ' * ',
             'values'     => (count($query['values']) > 0) ? @implode(', ', $query['values']) : '',
@@ -245,7 +247,8 @@ abstract class DriverAbstract
             'limit'      => $this->limit($query['limit'], $query['offset'], $query['page']),
             'joins'      => @implode(' ', $query['joins']),
             'group'      => $this->group($query['group']),
-        ]);
+            ]
+        );
     }
 
     /**
@@ -277,12 +280,14 @@ abstract class DriverAbstract
      */
     public function buildJoinStatement($join)
     {
-        $data = array_merge([
+        $data = array_merge(
+            [
             'type'       => null,
             'alias'      => null,
             'table'      => 'join_table',
             'conditions' => [],
-        ], $join);
+            ], $join
+        );
 
         if (!empty($data['alias'])) {
             $data['alias'] = $this->alias.$this->name($data['alias']);
@@ -308,46 +313,46 @@ abstract class DriverAbstract
         $alias   = $data['alias'];
 
         switch (strtolower($type)) {
-            case 'select':
-                return 'SELECT '.$data['fields'].' FROM '.$data['table'].' '.$data['alias'].' '.$data['joins'].' '.$data['conditions'].' '.$data['group'].' '.$data['order'].' '.$data['limit'].'';
-            break;
-            case 'create':
-            case 'insert':
-                $values = $data['values'];
-                $values = rtrim($values, ')');
-                $values = ltrim($values, '(');
+        case 'select':
+            return 'SELECT '.$data['fields'].' FROM '.$data['table'].' '.$data['alias'].' '.$data['joins'].' '.$data['conditions'].' '.$data['group'].' '.$data['order'].' '.$data['limit'].'';
+                break;
+        case 'create':
+        case 'insert':
+            $values = $data['values'];
+            $values = rtrim($values, ')');
+            $values = ltrim($values, '(');
 
-                return 'INSERT INTO '.$data['table'].' ('.$data['fields'].') VALUES ('.$values.')';
-            break;
-            case 'update':
-                if (!empty($alias)) {
-                    $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
+            return 'INSERT INTO '.$data['table'].' ('.$data['fields'].') VALUES ('.$values.')';
+                break;
+        case 'update':
+            if (!empty($alias)) {
+                $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
+            }
+
+            return 'UPDATE '.$data['table'].' '.$aliases.'SET '.$data['fields'].' '.$data['conditions'].'';
+                break;
+        case 'delete':
+            if (!empty($alias)) {
+                $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
+            }
+
+            return 'DELETE '.$data['alias'].' FROM '.$data['table'].' '.$aliases.' '.$data['conditions'].' '.$data['limit'].'';
+                break;
+        case 'schema':
+            foreach (['columns', 'indexes'] as $var) {
+                if (is_array($data[$var])) {
+                    $data[$var] = "\t".implode(",\n\t", array_filter($data[$var]));
                 }
+            }
 
-                return 'UPDATE '.$data['table'].' '.$aliases.'SET '.$data['fields'].' '.$data['conditions'].'';
-            break;
-            case 'delete':
-                if (!empty($alias)) {
-                    $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
-                }
+            $indexes = $data['indexes'];
+            $columns = $data['columns'];
+            if (trim($indexes) != '') {
+                $columns .= ',';
+            }
 
-                return 'DELETE '.$data['alias'].' FROM '.$data['table'].' '.$aliases.' '.$data['conditions'].' '.$data['limit'].'';
-            break;
-            case 'schema':
-                foreach (['columns', 'indexes'] as $var) {
-                    if (is_array($data[$var])) {
-                        $data[$var] = "\t".implode(",\n\t", array_filter($data[$var]));
-                    }
-                }
-
-                $indexes = $data['indexes'];
-                $columns = $data['columns'];
-                if (trim($indexes) != '') {
-                    $columns .= ',';
-                }
-
-                return 'CREATE TABLE '.$data['table']." (\n".$data['columns'].''.$data['indexes'].');';
-            break;
+            return 'CREATE TABLE '.$data['table']." (\n".$data['columns'].''.$data['indexes'].');';
+                break;
         }
     }
 
@@ -566,13 +571,13 @@ abstract class DriverAbstract
             $value = implode(', ', $value);
 
             switch ($operator) {
-                case '=':
-                    $operator = 'IN';
-                    break;
-                case '!=':
-                case '<>':
-                    $operator = 'NOT IN';
-                    break;
+            case '=':
+                $operator = 'IN';
+                break;
+            case '!=':
+            case '<>':
+                $operator = 'NOT IN';
+                break;
             }
             if (!empty($value)) {
                 $value = "({$value})";
@@ -581,13 +586,13 @@ abstract class DriverAbstract
             }
         } elseif ($null || $value === 'NULL') {
             switch ($operator) {
-                case '=':
-                    $operator = 'IS';
-                    break;
-                case '!=':
-                case '<>':
-                    $operator = 'IS NOT';
-                    break;
+            case '=':
+                $operator = 'IS';
+                break;
+            case '!=':
+            case '<>':
+                $operator = 'IS NOT';
+                break;
             }
             $value = 'NULL';
         }
@@ -942,9 +947,13 @@ abstract class DriverAbstract
             if ($alias && strpos($field, '.') === false) {
                 $quoted = $model->escapeField($field);
             } elseif (!$alias && strpos($field, '.') !== false) {
-                $quoted = $this->name(str_replace($quotedAlias.'.', '', str_replace(
-                    $model->alias.'.', '', $field
-                )));
+                $quoted = $this->name(
+                    str_replace(
+                        $quotedAlias.'.', '', str_replace(
+                            $model->alias.'.', '', $field
+                        )
+                    )
+                );
             } else {
                 $quoted = $this->name($field);
             }
@@ -958,9 +967,11 @@ abstract class DriverAbstract
             if ($quoteValues) {
                 $update .= $this->value($value);
             } elseif (!$alias) {
-                $update .= str_replace($quotedAlias.'.', '', str_replace(
-                    $model->alias.'.', '', $value
-                ));
+                $update .= str_replace(
+                    $quotedAlias.'.', '', str_replace(
+                        $model->alias.'.', '', $value
+                    )
+                );
             } else {
                 $update .= $value;
             }
@@ -1110,9 +1121,9 @@ abstract class DriverAbstract
 
     protected function logSqlError($sql)
     {
-        if ($this->has('logger')) {
+        if ($this->container->has('logger')) {
             $message = $this->lastError().' : '.$sql;
-            $this->get('logger')->error($message);
+            $this->container->get('logger')->error($message);
         }
 
         return true;

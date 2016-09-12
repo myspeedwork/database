@@ -1,26 +1,31 @@
 {
     "name": "speedwork/database",
     "type": "library",
-    "version" : "v0.0.1-dev",
     "description": "Speedwork database Library",
     "license": "MIT",
-    "authors": [
-        {
-            "name": "sankar",
-            "email": "sankar.suda@gmail.com"
-        }
-    ],
+    "authors": [{
+        "name": "sankar",
+        "email": "sankar.suda@gmail.com"
+    }],
     "require": {
-        "php" : ">=5.4",
-        "speedwork/core" : "dev-master",
-        "speedwork/util" : "dev-master"
+        "php": ">=5.6",
+        "speedwork/container": "~1.0",
+        "speedwork/core": "~1.0",
+        "speedwork/util": "~1.0"
     },
-    "require-dev" : {
-        "phpunit/phpunit": "~3.7",
-        "satooshi/php-coveralls": "dev-master"
+    "require-dev": {
+        "phpunit/phpunit": "~5.5",
+        "satooshi/php-coveralls": "2.*"
     },
-    "autoload" : {
-        "psr-4": { "Speedwork\\Database\\": "src" }
+    "autoload": {
+        "psr-4": {
+            "Speedwork\\Database\\": "src"
+        }
     },
-    "minimum-stability": "dev"
+    "minimum-stability": "dev",
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.0.x-dev"
+        }
+    }
 }

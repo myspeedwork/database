@@ -111,7 +111,7 @@ class Database extends Di
 
         $this->driver = new $database();
         $this->driver->setConfig($config);
-        $this->driver->setContainer($this->di);
+        $this->driver->setContainer($this->getContainer());
         $this->connected = $this->driver->connect();
 
         return $this->driver;
@@ -185,16 +185,18 @@ class Database extends Di
 
         $this->sql = $sql;
 
-        if ($this->cache === false || empty($duration)) {
+        if ($this->cache !== true || empty($duration)) {
             return $this->fetchFromDb($sql);
         }
 
         $cache_key = $name ?: md5($sql);
         $cache_key = 'db_'.$cache_key;
 
-        return $this->get('cache')->remember($cache_key, function () use ($sql) {
-            return $this->fetchFromDb($sql);
-        }, $duration);
+        return $this->get('cache')->remember(
+            $cache_key, function () use ($sql) {
+                return $this->fetchFromDb($sql);
+            }, $duration
+        );
 
         return $this->fetchFromDb($sql);
     }
@@ -403,118 +405,118 @@ class Database extends Di
         $params['type']  = $type;
 
         switch ($type) {
-            case 'count':
+        case 'count':
 
-                $params['fields'] = ['count(*) as total'];
-                unset($params['limit'], $params['order'], $params['offset'], $params['page']);
-                $query = $this->driver->buildStatement($params, $table);
+            $params['fields'] = ['count(*) as total'];
+            unset($params['limit'], $params['order'], $params['offset'], $params['page']);
+            $query = $this->driver->buildStatement($params, $table);
 
-                if ($params['group']) {
-                    $query = 'SELECT COUNT(*) AS total FROM ('.$query.') as tmp';
-                }
-                $data    = $this->fetch($query, $cache, $cache_name);
-                $results = intval($data[0]['total']);
-                unset($data);
-                break;
+            if ($params['group']) {
+                $query = 'SELECT COUNT(*) AS total FROM ('.$query.') as tmp';
+            }
+            $data    = $this->fetch($query, $cache, $cache_name);
+            $results = intval($data[0]['total']);
+            unset($data);
+            break;
 
-            case 'all':
-                $query   = $this->driver->buildStatement($params, $table);
-                $results = $this->fetch($query, $cache, $cache_name);
-                break;
+        case 'all':
+            $query   = $this->driver->buildStatement($params, $table);
+            $results = $this->fetch($query, $cache, $cache_name);
+            break;
             /*
              * array('fields' => array('value','group','title'),
              *       'empty' => array('module','mod_view'),
              *       'replace' => array('parent_id','name')
              *       );
              */
-            case 'list':
-                $query = $this->driver->buildStatement($params, $table);
-                $rows  = $this->fetch($query, $cache, $cache_name);
+        case 'list':
+            $query = $this->driver->buildStatement($params, $table);
+            $rows  = $this->fetch($query, $cache, $cache_name);
 
-                $fields = [];
-                if (is_array($rows[0])) {
-                    $fields = array_keys($rows[0]);
-                }
+            $fields = [];
+            if (is_array($rows[0])) {
+                $fields = array_keys($rows[0]);
+            }
 
-                if (count($fields) == 0) {
-                    $results = &$rows;
-                } else {
-                    $empty   = $params['empty'];
-                    $replace = $params['replace'];
+            if (count($fields) == 0) {
+                $results = &$rows;
+            } else {
+                $empty   = $params['empty'];
+                $replace = $params['replace'];
 
-                    $value  = $fields[0];
-                    $option = $fields[1];
-                    $optgrp = $fields[2];
-                    $res    = [];
-                    foreach ($rows as $row) {
-                        if (count($fields) == 1) {
-                            $res[$row[$value]] = $row[$value];
-                        } elseif (count($fields) == 2) {
-                            $res[$row[$value]] = $row[$option];
-                        } else {
-                            if ($empty) {
-                                $v  = $empty[0];
-                                $re = $empty[1];
+                $value  = $fields[0];
+                $option = $fields[1];
+                $optgrp = $fields[2];
+                $res    = [];
+                foreach ($rows as $row) {
+                    if (count($fields) == 1) {
+                        $res[$row[$value]] = $row[$value];
+                    } elseif (count($fields) == 2) {
+                        $res[$row[$value]] = $row[$option];
+                    } else {
+                        if ($empty) {
+                            $v  = $empty[0];
+                            $re = $empty[1];
 
-                                if (!$row[$v] && $option == $re) {
-                                    $res[$row[$re]][$row[$value]] = $row[$option];
-                                } elseif (!$row[$v] && $optgrp == $re) {
-                                    $res[$row[$optgrp]][$row[$value]] = $row[$re];
-                                } else {
-                                    $res[$row[$optgrp]][$row[$value]] = $row[$option];
-                                }
+                            if (!$row[$v] && $option == $re) {
+                                $res[$row[$re]][$row[$value]] = $row[$option];
+                            } elseif (!$row[$v] && $optgrp == $re) {
+                                $res[$row[$optgrp]][$row[$value]] = $row[$re];
                             } else {
                                 $res[$row[$optgrp]][$row[$value]] = $row[$option];
                             }
+                        } else {
+                            $res[$row[$optgrp]][$row[$value]] = $row[$option];
+                        }
 
-                            if ($replace) {
-                                $res[$row[$option]][$row[$value]] = $row[$optgrp];
-                            }
+                        if ($replace) {
+                            $res[$row[$option]][$row[$value]] = $row[$optgrp];
                         }
                     }
-                    unset($value, $option, $rows, $optgrp, $v, $re);
-                    $results = &$res;
                 }
-                break;
+                unset($value, $option, $rows, $optgrp, $v, $re);
+                $results = &$res;
+            }
+            break;
             /*
                 $database->find('menu','neighbors',array('field'=>ordering,'value'=>1));
              */
-            case 'neighbors':
-            case 'siblings':
+        case 'neighbors':
+        case 'siblings':
 
-                $field = $params['field'];
-                $value = $params['value'];
-                unset($params['value'], $params['field']);
+            $field = $params['field'];
+            $value = $params['value'];
+            unset($params['value'], $params['field']);
 
-                if (empty($params['limit'])) {
-                    $params['limit'] = 1;
-                }
+            if (empty($params['limit'])) {
+                $params['limit'] = 1;
+            }
 
-                if (!is_array($params['conditions'])) {
-                    $conditions = [];
-                } else {
-                    $conditions = $params['conditions'];
-                }
+            if (!is_array($params['conditions'])) {
+                $conditions = [];
+            } else {
+                $conditions = $params['conditions'];
+            }
 
-                //build first query
-                $params['order']      = [$field.' DESC'];
-                $params['conditions'] = array_merge([$field.' < ' => $value], $conditions);
+            //build first query
+            $params['order']      = [$field.' DESC'];
+            $params['conditions'] = array_merge([$field.' < ' => $value], $conditions);
 
-                $query = $this->driver->buildStatement($params, $table);
-                $data  = $this->fetch($query, $cache, $cache_name);
+            $query = $this->driver->buildStatement($params, $table);
+            $data  = $this->fetch($query, $cache, $cache_name);
 
-                $results['prev'] = ($params['limit']) ? $data[0] : $data;
+            $results['prev'] = ($params['limit']) ? $data[0] : $data;
 
-                //build second query
-                $params['order']      = [$field];
-                $params['conditions'] = array_merge([$field.' > ' => $value], $conditions);
+            //build second query
+            $params['order']      = [$field];
+            $params['conditions'] = array_merge([$field.' > ' => $value], $conditions);
 
-                $query = $this->driver->buildStatement($params, $table);
-                $data  = $this->fetch($query, $cache, $cache_name);
+            $query = $this->driver->buildStatement($params, $table);
+            $data  = $this->fetch($query, $cache, $cache_name);
 
-                $results['next'] = ($params['limit']) ? $data[0] : $data;
+            $results['next'] = ($params['limit']) ? $data[0] : $data;
 
-                break;
+            break;
             /*
                 $html =  '<li><input type="checkbox" name="category[]" class="liChild" value="{menuID}"/>{name}';
                 $database->find('menu','threaded',
@@ -525,41 +527,41 @@ class Database extends Di
                                           'parent_tag'=>array('<ul>','</ul>'))
                                 );
              */
-            case 'threaded':
+        case 'threaded':
 
-                if (!$params['field']) {
-                    throw new Exception('field not found');
-                }
+            if (!$params['field']) {
+                throw new Exception('field not found');
+            }
 
-                $query = $this->driver->buildStatement($params, $table);
-                $data  = $this->fetch($query, $cache, $cache_name);
+            $query = $this->driver->buildStatement($params, $table);
+            $data  = $this->fetch($query, $cache, $cache_name);
 
-                $menuData = ['items' => [], 'parents' => []];
-                foreach ($data as $menuItem) {
-                    // Creates entry into items array with current menu item id ie. $menuData['items'][1]
-                    $menuData['items'][$menuItem[$params['field'][0]]] = $menuItem;
-                    // Creates entry into parents array. Parents array contains a list of all items with children
-                    $menuData['parents'][$menuItem[$params['field'][1]]][] = $menuItem[$params['field'][0]];
-                }
-                $results = $this->buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
-                break;
+            $menuData = ['items' => [], 'parents' => []];
+            foreach ($data as $menuItem) {
+                // Creates entry into items array with current menu item id ie. $menuData['items'][1]
+                $menuData['items'][$menuItem[$params['field'][0]]] = $menuItem;
+                // Creates entry into parents array. Parents array contains a list of all items with children
+                $menuData['parents'][$menuItem[$params['field'][1]]][] = $menuItem[$params['field'][0]];
+            }
+            $results = $this->buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
+            break;
 
-            case 'first':
-                $params['limit'] = 1;
-                $query           = $this->driver->buildStatement($params, $table);
-                $results         = $this->fetch($query, $cache, $cache_name);
-                $results         = $results[0];
-                break;
+        case 'first':
+            $params['limit'] = 1;
+            $query           = $this->driver->buildStatement($params, $table);
+            $results         = $this->fetch($query, $cache, $cache_name);
+            $results         = $results[0];
+            break;
 
-            case 'field':
-                $query   = $this->driver->buildStatement($params, $table);
-                $rows    = $this->fetch($query, $cache, $cache_name);
-                $results = [];
-                foreach ($rows as $key => $v) {
-                    $results[$key][] = $v;
-                }
-                unset($rows);
-                break;
+        case 'field':
+            $query   = $this->driver->buildStatement($params, $table);
+            $rows    = $this->fetch($query, $cache, $cache_name);
+            $results = [];
+            foreach ($rows as $key => $v) {
+                $results[$key][] = $v;
+            }
+            unset($rows);
+            break;
         }
 
         //if method exists
@@ -709,9 +711,10 @@ class Database extends Di
             $total    = $params['total'];
             $hasTotal = true;
         } else {
-            if (($paging != 'scroll' && $paging != 'mixed') ||
-              (($paging == 'scroll' || $paging == 'mixed') &&
-               $page == 1)) {
+            if (($paging != 'scroll' && $paging != 'mixed')
+                || (($paging == 'scroll' || $paging == 'mixed')
+                && $page == 1)
+            ) {
                 foreach ($tables as $table) {
                     $total += $this->find($table, 'count', $params);
                 }
@@ -903,9 +906,11 @@ class Database extends Di
 
     public function cascade($table, $data = [], $conditions = [], $details = [])
     {
-        $rows = $this->find($table, 'count', [
-          'conditions' => $conditions,
-        ]);
+        $rows = $this->find(
+            $table, 'count', [
+            'conditions' => $conditions,
+            ]
+        );
 
         if ($rows > 0) {
             return $this->update($table, $data, $conditions, $details);
