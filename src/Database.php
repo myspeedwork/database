@@ -56,7 +56,6 @@ class Database extends Di
      */
     protected function getHelpers($type)
     {
-        //$helpers = $this->helpers[$type];
         $helpers = config('database.helpers.'.$type);
         if (!is_array($helpers)) {
             return [];
@@ -197,8 +196,6 @@ class Database extends Di
                 return $this->fetchFromDb($sql);
             }, $duration
         );
-
-        return $this->fetchFromDb($sql);
     }
 
     /**
@@ -353,6 +350,14 @@ class Database extends Di
     /**
      * This is like fetch this will generate query and output the results.
      *
+     *
+     * $list = array('fields' => array('value','group','title'),
+     *       'empty' => array('module','mod_view'),
+     *       'replace' => array('parent_id','name')
+     *       );
+     *
+     * $database->find('menu','neighbors',array('field'=>ordering,'value'=>1));
+     *
      * @param string $table
      * @param string $type
      * @param array  $params
@@ -405,163 +410,152 @@ class Database extends Di
         $params['type']  = $type;
 
         switch ($type) {
-        case 'count':
+            case 'count':
+                $params['fields'] = ['count(*) as total'];
+                unset($params['limit'], $params['order'], $params['offset'], $params['page']);
+                $query = $this->driver->buildStatement($params, $table);
 
-            $params['fields'] = ['count(*) as total'];
-            unset($params['limit'], $params['order'], $params['offset'], $params['page']);
-            $query = $this->driver->buildStatement($params, $table);
+                if ($params['group']) {
+                    $query = 'SELECT COUNT(*) AS total FROM ('.$query.') as tmp';
+                }
+                $data    = $this->fetch($query, $cache, $cache_name);
+                $results = intval($data[0]['total']);
+                unset($data);
+                break;
 
-            if ($params['group']) {
-                $query = 'SELECT COUNT(*) AS total FROM ('.$query.') as tmp';
-            }
-            $data    = $this->fetch($query, $cache, $cache_name);
-            $results = intval($data[0]['total']);
-            unset($data);
-            break;
+            case 'all':
+                $query   = $this->driver->buildStatement($params, $table);
+                $results = $this->fetch($query, $cache, $cache_name);
+                break;
 
-        case 'all':
-            $query   = $this->driver->buildStatement($params, $table);
-            $results = $this->fetch($query, $cache, $cache_name);
-            break;
-            /*
-             * array('fields' => array('value','group','title'),
-             *       'empty' => array('module','mod_view'),
-             *       'replace' => array('parent_id','name')
-             *       );
-             */
-        case 'list':
-            $query = $this->driver->buildStatement($params, $table);
-            $rows  = $this->fetch($query, $cache, $cache_name);
+            case 'list':
+                $query = $this->driver->buildStatement($params, $table);
+                $rows  = $this->fetch($query, $cache, $cache_name);
 
-            $fields = [];
-            if (is_array($rows[0])) {
-                $fields = array_keys($rows[0]);
-            }
+                $fields = [];
+                if (is_array($rows[0])) {
+                    $fields = array_keys($rows[0]);
+                }
 
-            if (count($fields) == 0) {
-                $results = &$rows;
-            } else {
-                $empty   = $params['empty'];
-                $replace = $params['replace'];
+                if (count($fields) == 0) {
+                    $results = &$rows;
+                } else {
+                    $empty   = $params['empty'];
+                    $replace = $params['replace'];
 
-                $value  = $fields[0];
-                $option = $fields[1];
-                $optgrp = $fields[2];
-                $res    = [];
-                foreach ($rows as $row) {
-                    if (count($fields) == 1) {
-                        $res[$row[$value]] = $row[$value];
-                    } elseif (count($fields) == 2) {
-                        $res[$row[$value]] = $row[$option];
-                    } else {
-                        if ($empty) {
-                            $v  = $empty[0];
-                            $re = $empty[1];
+                    $value  = $fields[0];
+                    $option = $fields[1];
+                    $optgrp = $fields[2];
+                    $res    = [];
+                    foreach ($rows as $row) {
+                        if (count($fields) == 1) {
+                            $res[$row[$value]] = $row[$value];
+                        } elseif (count($fields) == 2) {
+                            $res[$row[$value]] = $row[$option];
+                        } else {
+                            if ($empty) {
+                                $v  = $empty[0];
+                                $re = $empty[1];
 
-                            if (!$row[$v] && $option == $re) {
-                                $res[$row[$re]][$row[$value]] = $row[$option];
-                            } elseif (!$row[$v] && $optgrp == $re) {
-                                $res[$row[$optgrp]][$row[$value]] = $row[$re];
+                                if (!$row[$v] && $option == $re) {
+                                    $res[$row[$re]][$row[$value]] = $row[$option];
+                                } elseif (!$row[$v] && $optgrp == $re) {
+                                    $res[$row[$optgrp]][$row[$value]] = $row[$re];
+                                } else {
+                                    $res[$row[$optgrp]][$row[$value]] = $row[$option];
+                                }
                             } else {
                                 $res[$row[$optgrp]][$row[$value]] = $row[$option];
                             }
-                        } else {
-                            $res[$row[$optgrp]][$row[$value]] = $row[$option];
-                        }
 
-                        if ($replace) {
-                            $res[$row[$option]][$row[$value]] = $row[$optgrp];
+                            if ($replace) {
+                                $res[$row[$option]][$row[$value]] = $row[$optgrp];
+                            }
                         }
                     }
+                    unset($value, $option, $rows, $optgrp, $v, $re);
+                    $results = &$res;
                 }
-                unset($value, $option, $rows, $optgrp, $v, $re);
-                $results = &$res;
-            }
-            break;
-            /*
-                $database->find('menu','neighbors',array('field'=>ordering,'value'=>1));
-             */
-        case 'neighbors':
-        case 'siblings':
+                break;
+            case 'neighbors':
+            case 'siblings':
+                $field = $params['field'];
+                $value = $params['value'];
+                unset($params['value'], $params['field']);
 
-            $field = $params['field'];
-            $value = $params['value'];
-            unset($params['value'], $params['field']);
+                if (empty($params['limit'])) {
+                    $params['limit'] = 1;
+                }
 
-            if (empty($params['limit'])) {
+                if (!is_array($params['conditions'])) {
+                    $conditions = [];
+                } else {
+                    $conditions = $params['conditions'];
+                }
+
+                //build first query
+                $params['order']      = [$field.' DESC'];
+                $params['conditions'] = array_merge([$field.' < ' => $value], $conditions);
+
+                $query = $this->driver->buildStatement($params, $table);
+                $data  = $this->fetch($query, $cache, $cache_name);
+
+                $results['prev'] = ($params['limit']) ? $data[0] : $data;
+
+                //build second query
+                $params['order']      = [$field];
+                $params['conditions'] = array_merge([$field.' > ' => $value], $conditions);
+
+                $query = $this->driver->buildStatement($params, $table);
+                $data  = $this->fetch($query, $cache, $cache_name);
+
+                $results['next'] = ($params['limit']) ? $data[0] : $data;
+
+                break;
+                /*
+                    $html =  '<li><input type="checkbox" name="category[]" class="liChild" value="{menuID}"/>{name}';
+                    $database->find('menu','threaded',
+                                        array('order'=>array('parent_id', 'ordering'),
+                                              'html'=>array($html,'</li>')
+                                              'parent'=>0,
+                                              'field'=>array('primary_key','parent_id'),
+                                              'parent_tag'=>array('<ul>','</ul>'))
+                                    );
+                 */
+            case 'threaded':
+                if (!$params['field']) {
+                    throw new Exception('field not found');
+                }
+
+                $query = $this->driver->buildStatement($params, $table);
+                $data  = $this->fetch($query, $cache, $cache_name);
+
+                $menuData = ['items' => [], 'parents' => []];
+                foreach ($data as $menuItem) {
+                    // Creates entry into items array with current menu item id ie. $menuData['items'][1]
+                    $menuData['items'][$menuItem[$params['field'][0]]] = $menuItem;
+                    // Creates entry into parents array. Parents array contains a list of all items with children
+                    $menuData['parents'][$menuItem[$params['field'][1]]][] = $menuItem[$params['field'][0]];
+                }
+                $results = $this->buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
+                break;
+
+            case 'first':
                 $params['limit'] = 1;
-            }
+                $query           = $this->driver->buildStatement($params, $table);
+                $results         = $this->fetch($query, $cache, $cache_name);
+                $results         = $results[0];
+                break;
 
-            if (!is_array($params['conditions'])) {
-                $conditions = [];
-            } else {
-                $conditions = $params['conditions'];
-            }
-
-            //build first query
-            $params['order']      = [$field.' DESC'];
-            $params['conditions'] = array_merge([$field.' < ' => $value], $conditions);
-
-            $query = $this->driver->buildStatement($params, $table);
-            $data  = $this->fetch($query, $cache, $cache_name);
-
-            $results['prev'] = ($params['limit']) ? $data[0] : $data;
-
-            //build second query
-            $params['order']      = [$field];
-            $params['conditions'] = array_merge([$field.' > ' => $value], $conditions);
-
-            $query = $this->driver->buildStatement($params, $table);
-            $data  = $this->fetch($query, $cache, $cache_name);
-
-            $results['next'] = ($params['limit']) ? $data[0] : $data;
-
-            break;
-            /*
-                $html =  '<li><input type="checkbox" name="category[]" class="liChild" value="{menuID}"/>{name}';
-                $database->find('menu','threaded',
-                                    array('order'=>array('parent_id', 'ordering'),
-                                          'html'=>array($html,'</li>')
-                                          'parent'=>0,
-                                          'field'=>array('primary_key','parent_id'),
-                                          'parent_tag'=>array('<ul>','</ul>'))
-                                );
-             */
-        case 'threaded':
-
-            if (!$params['field']) {
-                throw new Exception('field not found');
-            }
-
-            $query = $this->driver->buildStatement($params, $table);
-            $data  = $this->fetch($query, $cache, $cache_name);
-
-            $menuData = ['items' => [], 'parents' => []];
-            foreach ($data as $menuItem) {
-                // Creates entry into items array with current menu item id ie. $menuData['items'][1]
-                $menuData['items'][$menuItem[$params['field'][0]]] = $menuItem;
-                // Creates entry into parents array. Parents array contains a list of all items with children
-                $menuData['parents'][$menuItem[$params['field'][1]]][] = $menuItem[$params['field'][0]];
-            }
-            $results = $this->buildThreaded($params['parent'], $menuData, $params['html'], $params['parent_tag']);
-            break;
-
-        case 'first':
-            $params['limit'] = 1;
-            $query           = $this->driver->buildStatement($params, $table);
-            $results         = $this->fetch($query, $cache, $cache_name);
-            $results         = $results[0];
-            break;
-
-        case 'field':
-            $query   = $this->driver->buildStatement($params, $table);
-            $rows    = $this->fetch($query, $cache, $cache_name);
-            $results = [];
-            foreach ($rows as $key => $v) {
-                $results[$key][] = $v;
-            }
-            unset($rows);
-            break;
+            case 'field':
+                $query   = $this->driver->buildStatement($params, $table);
+                $rows    = $this->fetch($query, $cache, $cache_name);
+                $results = [];
+                foreach ($rows as $key => $v) {
+                    $results[$key][] = $v;
+                }
+                unset($rows);
+                break;
         }
 
         //if method exists
@@ -575,14 +569,14 @@ class Database extends Di
         return $results;
     }
 
-    /*
-     * bulid threaded items
-     * @param mixed $parent
-     * @param array $menuData
-     * @param string $ht ($html)
-     * @param array $parentTag
-    */
-
+    /**
+     * bulid threaded items.
+     *
+     * @param mixed  $parent
+     * @param array  $menuData
+     * @param string $ht        ($html)
+     * @param array  $parentTag
+     **/
     protected function buildThreaded($parent, $menuData, $replace, $parentTag)
     {
         $html = '';
@@ -806,12 +800,12 @@ class Database extends Di
             if (is_array($value)) {
                 $va = [];
                 foreach ($value as $k2 => $v2) {
-                    $va[] = ($v2) ? $this->driver->value($v2) : "''";
+                    $va[] = $this->driver->value($v2);
                     $k[]  = $this->driver->name($k2);
                 }
                 $v[] = '('.@implode(',', $va).')';
             } else {
-                $v[] = ($value) ? $this->driver->value($value) : "''";
+                $v[] = $this->driver->value($value);
                 $k[] = $this->driver->name($key);
             }
         }

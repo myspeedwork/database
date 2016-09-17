@@ -497,7 +497,7 @@ abstract class DriverAbstract
                     $data = $this->parseKey(trim($key), $value);
                 }
 
-                if ($data != null) {
+                if ($data !== null) {
                     if (preg_match('/^\(\(\((.+)\)\)\)$/', $data)) {
                         $data = substr($data, 1, strlen($data) - 2);
                     }
@@ -830,8 +830,6 @@ abstract class DriverAbstract
                 }
 
                 $fields = $fe;
-
-                //$fields = Set::extract($fields, '{n}.0');
 
                 if (!empty($fields[1])) {
                     if (!empty($fields[2])) {

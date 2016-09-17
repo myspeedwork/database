@@ -22,13 +22,13 @@ use Speedwork\Container\ServiceProvider;
  */
 class DatabaseServiceProvider extends ServiceProvider
 {
-    public function register(Container $di)
+    public function register(Container $app)
     {
-        $di['database'] = function ($di) {
+        $app['database'] = function ($app) {
             return $this->getConnection();
         };
 
-        $di['db'] = function ($app) {
+        $app['db'] = function ($app) {
             return $app['database'];
         };
     }
@@ -91,12 +91,10 @@ class DatabaseServiceProvider extends ServiceProvider
     {
         if (php_sapi_name() == 'cli' || $this->app['is_api_request']) {
             header('Content-Type: application/json');
-            echo json_encode(
-                [
+            echo json_encode([
                 'status'  => 'ERROR',
                 'message' => 'database was gone away',
-                ]
-            );
+            ]);
         } else {
             $path = THEMES.'system'.DS.'dbgone.tpl';
             echo file_get_contents($path);
