@@ -44,9 +44,7 @@ class MysqliDriver extends DriverAbstract
     public function connect()
     {
         $config = $this->config;
-
-        $config          = array_merge($this->baseConfig, $config);
-        $this->connected = false;
+        $config = array_merge($this->baseConfig, $config);
 
         if (is_numeric($config['port'])) {
             $config['socket'] = null;
@@ -55,19 +53,18 @@ class MysqliDriver extends DriverAbstract
             $config['port']   = null;
         }
 
-        $this->connection = mysqli_connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $config['socket']);
+        $this->connection = @mysqli_connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $config['socket']);
 
         if ($this->connection !== false) {
-            $this->connected = true;
-            $this->attempts  = 0;
-        }
+            $this->attempts = 0;
 
-        if (!empty($config['charset'])) {
-            $this->setCharset($config['charset']);
-        }
+            if (!empty($config['charset'])) {
+                $this->setCharset($config['charset']);
+            }
 
-        if (!empty($config['timezone'])) {
-            $this->setTimezone($config['timezone']);
+            if (!empty($config['timezone'])) {
+                $this->setTimezone($config['timezone']);
+            }
         }
 
         return $this->connection;
@@ -114,7 +111,6 @@ class MysqliDriver extends DriverAbstract
 
                 return $this->query($sql);
             }
-
             $this->logSqlError($sql);
         }
 

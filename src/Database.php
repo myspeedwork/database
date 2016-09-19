@@ -108,10 +108,15 @@ class Database extends Di
 
         $database = '\\Speedwork\\Database\\Drivers\\'.ucfirst($driver).'Driver';
 
-        $this->driver = new $database();
-        $this->driver->setConfig($config);
-        $this->driver->setContainer($this->getContainer());
-        $this->connected = $this->driver->connect();
+        try {
+            $this->driver = new $database();
+            $this->driver->setConfig($config);
+            $this->driver->setContainer($this->getContainer());
+            $this->connected = $this->driver->connect();
+        } catch (Exception $e) {
+            $this->connected = false;
+            throw new Exception($e->getMessage());
+        }
 
         return $this->driver;
     }
