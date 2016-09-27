@@ -1,0 +1,27 @@
+<?php
+
+use Speedwork\Database\Migration\MigrationAbstract;
+
+
+class DummyClass extends MigrationAbstract
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        //
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        //
+    }
+}

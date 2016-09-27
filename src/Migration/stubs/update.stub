@@ -1,0 +1,30 @@
+<?php
+
+use Speedwork\Database\Migration\MigrationAbstract;
+
+class DummyClass extends MigrationAbstract
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        $table = $this->getSchema()->getTable('DummyTable');
+
+        $table->addColumn('column', 'integer');
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        $table = $this->getSchema()->getTable('DummyTable');
+
+        $table->dropColumn('column');
+    }
+}

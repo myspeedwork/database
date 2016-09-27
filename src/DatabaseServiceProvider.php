@@ -31,11 +31,21 @@ class DatabaseServiceProvider extends ServiceProvider
         $app['db'] = function ($app) {
             return $app['database'];
         };
+
+        $connections = $this->getSettings('database.connections');
+
+        foreach ($connections as $name => $config) {
+            $app['database.'.$name] = function ($app) {
+                return $this->getConnection($config);
+            };
+        }
     }
 
-    protected function getConnection($name = null)
+    protected function getConnection($config = null)
     {
-        $config = $this->getConfig($name);
+        if (!is_array($config)) {
+            $config = $this->getConfig($config);
+        }
 
         $wrapperClass = $config['wrapper'] ?: '\\Speedwork\\Database\\Database';
         $helpers      = $this->getSettings('database.helpers');

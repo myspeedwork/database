@@ -1,0 +1,40 @@
+<?php
+
+use Speedwork\Database\Migration\MigrationAbstract;
+
+class DummyClass extends MigrationAbstract
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        $table = $this->getSchema()->createTable('DummyTable');
+
+        $table->addColumn('id', 'integer')
+                ->setUnsigned(true)
+                ->setAutoincrement(true);
+
+        $table->addColumn('created', 'integer', ['length' => 10]);
+        $table->addColumn('modified', 'integer', ['length' => 10]);
+        $table->addColumn('status', 'smallint', ['length' => 1]);
+
+        $table->setPrimaryKey(['id']);
+
+        // Adding Foreign key
+        $table->addForeignKeyConstraint($this->getSchema()->getTable('table'), array('table_id'), array('id'), array('onDelete' => 'CASCADE'));
+
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        $this->getSchema()->dropTable('DummyTable');
+    }
+}

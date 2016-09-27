@@ -313,45 +313,45 @@ abstract class DriverAbstract
         $alias   = $data['alias'];
 
         switch (strtolower($type)) {
-        case 'select':
-            return 'SELECT '.$data['fields'].' FROM '.$data['table'].' '.$data['alias'].' '.$data['joins'].' '.$data['conditions'].' '.$data['group'].' '.$data['order'].' '.$data['limit'].'';
+            case 'select':
+                return 'SELECT '.$data['fields'].' FROM '.$data['table'].' '.$data['alias'].' '.$data['joins'].' '.$data['conditions'].' '.$data['group'].' '.$data['order'].' '.$data['limit'].'';
                 break;
-        case 'create':
-        case 'insert':
-            $values = $data['values'];
-            $values = rtrim($values, ')');
-            $values = ltrim($values, '(');
+            case 'create':
+            case 'insert':
+                $values = $data['values'];
+                $values = rtrim($values, ')');
+                $values = ltrim($values, '(');
 
-            return 'INSERT INTO '.$data['table'].' ('.$data['fields'].') VALUES ('.$values.')';
+                return 'INSERT INTO '.$data['table'].' ('.$data['fields'].') VALUES ('.$values.')';
                 break;
-        case 'update':
-            if (!empty($alias)) {
-                $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
-            }
-
-            return 'UPDATE '.$data['table'].' '.$aliases.'SET '.$data['fields'].' '.$data['conditions'].'';
-                break;
-        case 'delete':
-            if (!empty($alias)) {
-                $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
-            }
-
-            return 'DELETE '.$data['alias'].' FROM '.$data['table'].' '.$aliases.' '.$data['conditions'].' '.$data['limit'].'';
-                break;
-        case 'schema':
-            foreach (['columns', 'indexes'] as $var) {
-                if (is_array($data[$var])) {
-                    $data[$var] = "\t".implode(",\n\t", array_filter($data[$var]));
+            case 'update':
+                if (!empty($alias)) {
+                    $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
                 }
-            }
 
-            $indexes = $data['indexes'];
-            $columns = $data['columns'];
-            if (trim($indexes) != '') {
-                $columns .= ',';
-            }
+                return 'UPDATE '.$data['table'].' '.$aliases.'SET '.$data['fields'].' '.$data['conditions'].'';
+                break;
+            case 'delete':
+                if (!empty($alias)) {
+                    $aliases = "{$this->alias}".$data['alias'].' '.$data['joins'].' ';
+                }
 
-            return 'CREATE TABLE '.$data['table']." (\n".$data['columns'].''.$data['indexes'].');';
+                return 'DELETE '.$data['alias'].' FROM '.$data['table'].' '.$aliases.' '.$data['conditions'].' '.$data['limit'].'';
+                break;
+            case 'schema':
+                foreach (['columns', 'indexes'] as $var) {
+                    if (is_array($data[$var])) {
+                        $data[$var] = "\t".implode(",\n\t", array_filter($data[$var]));
+                    }
+                }
+
+                $indexes = $data['indexes'];
+                $columns = $data['columns'];
+                if (trim($indexes) != '') {
+                    $columns .= ',';
+                }
+
+                return 'CREATE TABLE '.$data['table']." (\n".$data['columns'].''.$data['indexes'].');';
                 break;
         }
     }
@@ -539,8 +539,6 @@ abstract class DriverAbstract
             }
         }
 
-        $type = null;
-
         $null = ($value === null || (is_array($value) && empty($value)));
 
         if (strtolower($operator) === 'not') {
@@ -551,7 +549,7 @@ abstract class DriverAbstract
             return $data[0];
         }
 
-        $value = $this->value($value, $type);
+        $value = $this->value($value);
 
         if ($key !== '?') {
             $isKey = (strpos($key, '(') !== false || strpos($key, ')') !== false);
@@ -571,14 +569,15 @@ abstract class DriverAbstract
             $value = implode(', ', $value);
 
             switch ($operator) {
-            case '=':
-                $operator = 'IN';
-                break;
-            case '!=':
-            case '<>':
-                $operator = 'NOT IN';
-                break;
+                case '=':
+                    $operator = 'IN';
+                    break;
+                case '!=':
+                case '<>':
+                    $operator = 'NOT IN';
+                    break;
             }
+
             if (!empty($value)) {
                 $value = "({$value})";
             } else {
@@ -586,13 +585,13 @@ abstract class DriverAbstract
             }
         } elseif ($null || $value === 'NULL') {
             switch ($operator) {
-            case '=':
-                $operator = 'IS';
-                break;
-            case '!=':
-            case '<>':
-                $operator = 'IS NOT';
-                break;
+                case '=':
+                    $operator = 'IS';
+                    break;
+                case '!=':
+                case '<>':
+                    $operator = 'IS NOT';
+                    break;
             }
             $value = 'NULL';
         }
@@ -761,42 +760,43 @@ abstract class DriverAbstract
     /**
      * Prepares a value, or an array of values for database queries by quoting and escaping them.
      *
-     * @param mixed  $data   A value or an array of values to prepare
+     * @param mixed  $name   A value or an array of values to prepare
      * @param string $column The column into which this data will be inserted
      * @param bool   $read   Value to be used in READ or WRITE context
      *
      * @return mixed Prepared value or array of values
      */
-    public function value($data, $column = null, $read = true)
+    public function value($value)
     {
-        if (is_array($data) && !empty($data)) {
-            return array_map(
-                [&$this, 'value'],
-                $data, array_fill(0, count($data), $column), array_fill(0, count($data), $read)
-            );
+        if (is_array($value) && !empty($value)) {
+            return array_map([&$this, 'value'], $value);
         }
 
-        if (is_object($data) && isset($data->type)) {
-            if ($data->type == 'identifier') {
-                return $this->name($data->value);
-            } elseif ($data->type == 'expression') {
-                return $data->value;
+        if (is_object($value) && isset($value->type)) {
+            if ($value->type == 'identifier') {
+                return $this->name($value->value);
+            } elseif ($value->type == 'expression') {
+                return $value->value;
             }
         }
 
-        if (@stripos($data, 'sql:select') !== false) {
-            return str_replace(['sql:'], '', $data);
+        if (stripos($value, 'sql:select') !== false) {
+            return str_replace(['sql:'], '', $value);
         }
 
-        if (is_string($data)) {
-            return   "'".$this->escape($data)."'";
+        if (null === $value || 'NULL' === $value) {
+            return 'NULL';
         }
 
-        if (is_null($data)) {
-            return   "''";
+        if (!isset($value) || is_bool($value)) {
+            return "''";
         }
 
-        return $data;
+        if (is_string($value)) {
+            return "'".$this->escape($value)."'";
+        }
+
+        return $value;
     }
 
     /**

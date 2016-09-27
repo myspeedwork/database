@@ -53,7 +53,7 @@ class MysqliDriver extends DriverAbstract
             $config['port']   = null;
         }
 
-        $this->connection = @mysqli_connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $config['socket']);
+        $this->connection = mysqli_connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $config['socket']);
 
         if ($this->connection !== false) {
             $this->attempts = 0;
