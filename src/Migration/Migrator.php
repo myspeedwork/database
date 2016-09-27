@@ -308,6 +308,7 @@ class Migrator
                 $instance = $this->resolve($name);
                 $instance->setSchema($this->getSchema(), $this->tablePrefix);
                 $instance->down();
+
                 $this->build();
 
                 // Once we have successfully run the migration "down" we will remove it from
@@ -343,7 +344,8 @@ class Migrator
             $this->connection->exec($query);
         }
 
-        $this->setSchema();
+        //$this->setSchema();
+        $this->setConnection();
     }
 
     /**
@@ -448,14 +450,12 @@ class Migrator
             'driver'   => $drivers[$params['driver']],
         ];
 
-        $connection = DriverManager::getConnection($connParams);
+        $this->connection = DriverManager::getConnection($connParams);
 
-        $this->schema = $connection->getSchemaManager()->createSchema();
+        $this->schema = $this->connection->getSchemaManager()->createSchema();
 
         $this->repository->setSource($name);
         $this->setSchema();
-
-        $this->connection = $connection;
     }
 
     /**

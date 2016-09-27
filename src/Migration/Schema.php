@@ -39,6 +39,31 @@ class Schema
         return $this->schema->getTable($tableName);
     }
 
+    /**
+     * {@inheritdoc}
+     */
+    public function dropTable($tableName)
+    {
+        $tableName = str_replace('#__', $this->tablePrefix, $tableName);
+
+        return $this->schema->dropTable($tableName);
+    }
+
+    public function hasTable($tableName)
+    {
+        $tableName = str_replace('#__', $this->tablePrefix, $tableName);
+
+        return $this->schema->hasTable($tableName);
+    }
+
+    public function renameTable($oldTableName, $newTableName)
+    {
+        $oldTableName = str_replace('#__', $this->tablePrefix, $oldTableName);
+        $newTableName = str_replace('#__', $this->tablePrefix, $newTableName);
+
+        return $this->schema->renameTable($oldTableName, $newTableName);
+    }
+
     public function __call($method, $args)
     {
         return call_user_func_array([$this->schema, $method], $args);
