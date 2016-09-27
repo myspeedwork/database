@@ -13,9 +13,16 @@ namespace Speedwork\Database\Migration;
 
 use Doctrine\DBAL\Schema\Schema as BaseSchema;
 
-class Schema extends BaseSchema
+class Schema
 {
     protected $tablePrefix = '';
+
+    protected $schema;
+
+    public function __construct(BaseSchema $schema)
+    {
+        $this->schema = $schema;
+    }
 
     public function setTablePrefix($prefix)
     {
@@ -29,6 +36,11 @@ class Schema extends BaseSchema
     {
         $tableName = str_replace('#__', $this->tablePrefix, $tableName);
 
-        return parent::getTable($tableName);
+        return $this->schema->getTable($tableName);
+    }
+
+    public function __call($method, $args)
+    {
+        return call_user_func_array([$this->schema, $method], $args);
     }
 }

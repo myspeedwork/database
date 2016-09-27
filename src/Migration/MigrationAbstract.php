@@ -11,7 +11,7 @@
 
 namespace Speedwork\Database\Migration;
 
-use Doctrine\DBAL\Schema\Schema;
+use Doctrine\DBAL\Schema\Schema as BaseSchema;
 
 /**
  * @author Sankar <sankar.suda@gmail.com>
@@ -25,9 +25,9 @@ abstract class MigrationAbstract
      *
      * @param \Doctrine\DBAL\Schema\Schema $schema
      */
-    public function setSchema(Schema $schema, $prefix = null)
+    public function setSchema(BaseSchema $schema, $prefix = null)
     {
-        $this->schema = $schema;
+        $this->schema = new Schema($schema);
         $this->schema->setTablePrefix($prefix);
     }
 
