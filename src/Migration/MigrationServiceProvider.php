@@ -28,7 +28,10 @@ class MigrationServiceProvider extends ServiceProvider
         };
 
         $app['migrator'] = function ($app) {
-            return new Migrator($app['migration.repository'], $app);
+            $migrator = new Migrator($app['migration.repository'], $app);
+            $migrator->path($app['config']->get('database.migrations'));
+
+            return $migrator;
         };
 
         $app['migration.creator'] = function ($app) {

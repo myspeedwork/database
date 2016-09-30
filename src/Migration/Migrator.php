@@ -96,12 +96,19 @@ class Migrator
 
         $paths = array_unique($paths);
 
+        $sort = function (\SplFileInfo $a, \SplFileInfo $b) {
+            $time  = intval(str_replace('_', '', substr($a->getFileName(), 5, 12)));
+            $time2 = intval(str_replace('_', '', substr($b->getFileName(), 5, 12)));
+
+            return ($time2 > $time) ? 1 : -1;
+        };
+
         $files = $this->app['finder']
                 ->files()
                 ->followLinks()
                 ->name('*.php')
                 ->in($paths)
-                ->sortByName();
+                ->sort($sort);
 
         $migrations = [];
 
@@ -109,7 +116,7 @@ class Migrator
             $migrations[] = $file->getRealPath();
         }
 
-        return array_unique($migrations);
+        return array_reverse(array_unique($migrations));
     }
 
     /**

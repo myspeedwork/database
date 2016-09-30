@@ -13,14 +13,17 @@ namespace Speedwork\Database;
 
 use InvalidArgumentException;
 use Speedwork\Container\Container;
+use Speedwork\Container\EventListenerInterface;
 use Speedwork\Container\ServiceProvider;
+use Speedwork\Database\EventListener\RequestListener;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Speedwork database service Provider.
  *
  * @author Sankar <sankar.suda@gmail.com>
  */
-class DatabaseServiceProvider extends ServiceProvider
+class DatabaseServiceProvider extends ServiceProvider implements EventListenerInterface
 {
     public function register(Container $app)
     {
@@ -39,6 +42,10 @@ class DatabaseServiceProvider extends ServiceProvider
                 return $this->getConnection($config);
             };
         }
+
+        $app['database.request.listener'] = function ($app) {
+            return new RequestListener($app);
+        };
     }
 
     protected function getConnection($config = null)
@@ -48,12 +55,10 @@ class DatabaseServiceProvider extends ServiceProvider
         }
 
         $wrapperClass = $config['wrapper'] ?: '\\Speedwork\\Database\\Database';
-        $helpers      = $this->getSettings('database.helpers');
 
         $connection = new $wrapperClass();
         $connection->setContainer($this->app);
         $connection->setConfig($config);
-        $connection->setHelpers($helpers);
         $connection->connect();
 
         if (!$connection->isConnected()) {
@@ -111,5 +116,10 @@ class DatabaseServiceProvider extends ServiceProvider
             echo '<!-- Database was gone away... -->';
         }
         exit;
+    }
+
+    public function subscribe(Container $app, EventDispatcherInterface $dispatcher)
+    {
+        $dispatcher->addSubscriber($app['database.request.listener']);
     }
 }

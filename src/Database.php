@@ -13,6 +13,9 @@ namespace Speedwork\Database;
 
 use Exception;
 use Speedwork\Core\Di;
+use Speedwork\Database\Event\DatabaseEvents;
+use Speedwork\Database\Event\RequestEvent;
+use Speedwork\Database\Event\ResponseEvent;
 use Speedwork\Util\Pagination;
 
 /**
@@ -23,46 +26,9 @@ class Database extends Di
     protected $cache     = false;
     protected $connected = false;
     protected $config    = [];
-    protected $helpers   = [];
     protected $prefix;
     protected $sql;
     protected $driver;
-
-    /**
-     * Set helper names which executes in query formation.
-     *
-     * @param array $helpers List of helper names with key
-     * @param bool  $reset   Reset the old helpers or not
-     */
-    public function setHelpers($helpers = [], $reset = false)
-    {
-        if (is_array($helpers)) {
-            if ($reset) {
-                $this->helpers = $helpers;
-            } else {
-                $this->helpers = array_merge($this->helpers, $helpers);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * Get the stored helpers with helper of key.
-     *
-     * @param string $type Type of helpers to return
-     *
-     * @return array List of helpers
-     */
-    protected function getHelpers($type)
-    {
-        $helpers = config('database.helpers.'.$type);
-        if (!is_array($helpers)) {
-            return [];
-        }
-
-        return $helpers;
-    }
 
     /**
      * Set configuration to create database connection object.
@@ -375,37 +341,24 @@ class Database extends Di
             return $this->findTables($table, $type, $params);
         }
 
+        $params['table'] = $table;
+        $params['type']  = $type;
+
+        $event = new RequestEvent($params, []);
+        $this->app['events']->dispatch(DatabaseEvents::BEFORE_FIND, $event);
+
+        if ($event->isPropagationStopped()) {
+            return $event->getResponse();
+        }
+
+        $params = $event->getParams();
+
         $cache      = ($params['cache']) ? $params['cache'] : '';
         $cache_name = ($params['cache_name']) ? $params['cache_name'] : '';
 
-        $params['table'] = $table;
-        $params['type']  = $type;
         //don't consider nagitive values
         if ($params['limit'] < 0) {
             unset($params['limit']);
-        }
-
-        $helpers = $this->getHelpers('find');
-
-        if (is_array($params['helpers'])) {
-            $helpers = array_merge($helpers, $params['helpers']);
-        }
-
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
-
-            if ($help) {
-                $res = $help->beforeFind($params);
-                if ($res === false) {
-                    return [];
-                }
-                //if stop further
-                if ($params['stop'] === true) {
-                    break;
-                }
-
-                $results = $params['result'];
-            }
         }
 
         $type  = $params['type'];
@@ -563,15 +516,10 @@ class Database extends Di
                 break;
         }
 
-        //if method exists
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
-            if ($help && method_exists($help, 'afterFind')) {
-                $results = $help->afterFind($results, $params);
-            }
-        }
+        $event = new ResponseEvent($event, $results, $query);
+        $this->app['events']->dispatch(DatabaseEvents::AFTER_SAVE, $event);
 
-        return $results;
+        return $event->getResults();
     }
 
     /**
@@ -778,63 +726,45 @@ class Database extends Di
             return false;
         }
 
-        $helpers = $this->getHelpers('save');
-
-        if (is_array($details['helpers'])) {
-            $helpers = array_merge($helpers, $details['helpers']);
-        }
-
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
-
-            if ($help) {
-                $res = $help->beforeSave($data, $table, $details);
-                if ($res === false) {
-                    return true;
-                }
-
-                if ($details['stop'] === true) {
-                    break;
-                }
-            }
-        }
-        //end of helpers
-
-        $k = $v = [];
+        $keys   = [];
+        $values = [];
         foreach ($data as $key => $value) {
             if (is_array($value)) {
                 $va = [];
                 foreach ($value as $k2 => $v2) {
-                    $va[] = $this->driver->value($v2);
-                    $k[]  = $this->driver->name($k2);
+                    $va[]   = $this->driver->value($v2);
+                    $keys[] = $this->driver->name($k2);
                 }
-                $v[] = '('.@implode(',', $va).')';
+                $values[] = '('.implode(',', $va).')';
             } else {
-                $v[] = $this->driver->value($value);
-                $k[] = $this->driver->name($key);
+                $values[] = $this->driver->value($value);
+                $keys[]   = $this->driver->name($key);
             }
         }
 
-        $k = array_unique($k);
+        unset($data);
 
         $params           = [];
         $params['table']  = $table;
-        $params['fields'] = $k;
-        $params['values'] = $v;
+        $params['fields'] = array_unique($keys);
+        $params['values'] = $values;
 
-        $query = $this->driver->buildStatement($params, $table, 'insert');
+        $event = new RequestEvent($params, $details);
+        $this->app['events']->dispatch(DatabaseEvents::BEFORE_SAVE, $event);
 
-        $results = $this->query($query);
-
-        //if method exists
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
-            if ($help && method_exists($help, 'afterSave')) {
-                $results = $help->afterSave($results, $params, $details, $query);
-            }
+        if ($event->isPropagationStopped()) {
+            return $event->getResponse();
         }
 
-        return $results;
+        $params = $event->getParams();
+
+        $query   = $this->driver->buildStatement($params, $params['table'], 'insert');
+        $results = $this->query($query);
+
+        $event = new ResponseEvent($event, $results, $query);
+        $this->app['events']->dispatch(DatabaseEvents::AFTER_SAVE, $event);
+
+        return $event->getResults();
     }
 
     /**
@@ -846,38 +776,25 @@ class Database extends Di
      *
      * @return bool
      **/
-    public function update($table, $data = [], $conditions = [], $details = [])
+    public function update($table, $fields = [], $conditions = [], $details = [])
     {
-        if (count($data) == 0) {
+        if (count($fields) == 0) {
             return false;
         }
 
         $params               = [];
         $params['table']      = $table;
-        $params['fields']     = $data;
+        $params['fields']     = $fields;
         $params['conditions'] = $conditions;
 
-        $helpers = $this->getHelpers('update');
+        $event = new RequestEvent($params, $details);
+        $this->app['events']->dispatch(DatabaseEvents::BEFORE_UPDATE, $event);
 
-        if (is_array($details['helpers'])) {
-            $helpers = array_merge($helpers, $details['helpers']);
+        if ($event->isPropagationStopped()) {
+            return $event->getResponse();
         }
 
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
-
-            if ($help) {
-                $res = $help->beforeUpdate($params, $details);
-                if ($res === false) {
-                    return true;
-                }
-
-                if ($details['stop'] === true) {
-                    break;
-                }
-            }
-        }
-        //end of helpers
+        $params = $event->getParams();
 
         $k = [];
         foreach ($params['fields'] as $key => $value) {
@@ -889,18 +806,13 @@ class Database extends Di
         }
         $params['fields'] = $k;
 
-        $query = $this->driver->buildStatement($params, $params['table'], 'update');
-
+        $query   = $this->driver->buildStatement($params, $params['table'], 'update');
         $results = $this->query($query);
 
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
-            if ($help && method_exists($help, 'afterUpdate')) {
-                $results = $help->afterUpdate($results, $params, $details, $query);
-            }
-        }
+        $event = new ResponseEvent($event, $results, $query);
+        $this->app['events']->dispatch(DatabaseEvents::AFTER_UPDATE, $event);
 
-        return $results;
+        return $event->getResults();
     }
 
     public function cascade($table, $data = [], $conditions = [], $details = [])
@@ -937,40 +849,22 @@ class Database extends Di
             $params['limit'] = $details['limit'];
         }
 
-        $helpers = $this->getHelpers('delete');
+        $event = new RequestEvent($params, $details);
+        $this->app['events']->dispatch(DatabaseEvents::BEFORE_DELETE, $event);
 
-        if (is_array($details['helpers'])) {
-            $helpers = array_merge($helpers, $details['helpers']);
+        if ($event->isPropagationStopped()) {
+            return $event->getResponse();
         }
 
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
+        $params = $event->getParams();
 
-            if ($help) {
-                $res = $help->beforeDelete($params, $details);
-                if ($res === false) {
-                    return true;
-                }
-
-                if ($params['stop'] === true) {
-                    break;
-                }
-            }
-        }
-        //end of helpers
-
-        $query = $this->driver->buildStatement($params, $params['table'], 'delete');
-
+        $query   = $this->driver->buildStatement($params, $params['table'], 'delete');
         $results = $this->query($query);
 
-        foreach ($helpers as $helper) {
-            $help = $this->get('resolver')->helper($helper);
-            if ($help && method_exists($help, 'afterDelete')) {
-                $results = $help->afterDelete($results, $params, $details, $query);
-            }
-        }
+        $event = new ResponseEvent($event, $results, $query);
+        $this->app['events']->dispatch(DatabaseEvents::AFTER_DELETE, $event);
 
-        return $results;
+        return $event->getResults();
     }
 
     /**
