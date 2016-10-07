@@ -167,11 +167,8 @@ class RequestListener implements EventSubscriberInterface
 
         $alias = ($params['alias']) ? $params['alias'].'.' : '';
 
-        // Add column
-        $params['fields'][] = $alias.$column;
-
-        foreach ($params['values'] as $value) {
-            $value[] = $userid;
+        foreach ($params['values'] as &$value) {
+            $value[$alias.$column] = $userid;
         }
 
         $event->setParams($params);

@@ -720,33 +720,18 @@ class Database extends Di
      *
      * @return bool
      **/
-    public function save($table, $data = [], $details = [])
+    public function save($table, $values = [], $details = [])
     {
-        if (count($data) == 0) {
+        if (count($values) == 0) {
             return false;
         }
 
-        $keys   = [];
-        $values = [];
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $va = [];
-                foreach ($value as $k2 => $v2) {
-                    $va[]   = $this->driver->value($v2);
-                    $keys[] = $this->driver->name($k2);
-                }
-                $values[] = '('.implode(',', $va).')';
-            } else {
-                $values[] = $this->driver->value($value);
-                $keys[]   = $this->driver->name($key);
-            }
+        if (!is_array($values[0])) {
+            $values = [$values];
         }
-
-        unset($data);
 
         $params           = [];
         $params['table']  = $table;
-        $params['fields'] = array_unique($keys);
         $params['values'] = $values;
 
         $event = new RequestEvent($params, $details);
@@ -757,6 +742,20 @@ class Database extends Di
         }
 
         $params = $event->getParams();
+
+        $fields = array_keys($params['values'][0]);
+
+        $values = [];
+        foreach ($params['values'] as $value) {
+            $va = [];
+            foreach ($value as $v2) {
+                $va[] = $this->driver->value($v2);
+            }
+            $values[] = '('.implode(',', $va).')';
+        }
+
+        $params['fields'] = $fields;
+        $params['values'] = $values;
 
         $query   = $this->driver->buildStatement($params, $params['table'], 'insert');
         $results = $this->query($query);
