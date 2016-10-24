@@ -89,4 +89,23 @@ final class DatabaseEvents
      * @var string
      */
     const AFTER_UPDATE = 'database.after_update';
+
+    /**
+     * The CONNECTION_SUCCESS occurs after successfull connection to db.
+     *
+     * This event allows you to make changes to connection
+     * or allows to execute post connection queries
+     *
+     * @var string
+     */
+    const CONNECTION_SUCCESS = 'database.connection.success';
+
+    /**
+     * The CONNECTION_SUCCESS occurs after failure of connection to db.
+     *
+     * This event allows you to throw any errors or take action
+     *
+     * @var string
+     */
+    const CONNECTION_FAILED = 'database.connection.failed';
 }

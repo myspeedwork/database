@@ -80,8 +80,6 @@ class Migrator
         $this->app        = $app;
         $this->repository = $repository;
         $this->path($app['path.database'].'migrations');
-
-        $this->setConnection();
     }
 
     public function getMigrationFiles($paths = [])
@@ -351,7 +349,6 @@ class Migrator
             $this->connection->exec($query);
         }
 
-        //$this->setSchema();
         $this->setConnection();
     }
 
@@ -455,6 +452,8 @@ class Migrator
             'password' => $params['password'],
             'host'     => $params['host'],
             'driver'   => $drivers[$params['driver']],
+            'path'     => $params['path'],
+            'charset'  => $params['charset'],
         ];
 
         $this->connection = DriverManager::getConnection($connParams);

@@ -56,11 +56,11 @@ class StatusCommand extends BaseCommand
      */
     public function fire()
     {
+        $this->migrator->setConnection($this->option('database'));
+
         if (!$this->migrator->tableExists()) {
             return $this->error('No migrations found.');
         }
-
-        $this->migrator->setConnection($this->option('database'));
 
         $migrations = $this->migrator->getRepository()->getMigrations();
         $files      = $this->getAllMigrationFiles();

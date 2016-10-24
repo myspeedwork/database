@@ -24,6 +24,13 @@ class MigrationRepository
     protected $table;
 
     /**
+     * Connection instance.
+     *
+     * @var string
+     */
+    protected $connection;
+
+    /**
      * The name of the database connection to use.
      *
      * @var string
@@ -34,7 +41,6 @@ class MigrationRepository
     {
         $this->app   = $app;
         $this->table = $table;
-        $this->setSource();
     }
 
     /**
@@ -123,6 +129,11 @@ class MigrationRepository
         return $row['batch'];
     }
 
+    /**
+     * Set the database connection.
+     *
+     * @param string $name Connection name
+     */
     public function setSource($name = null)
     {
         if ($name) {
@@ -130,5 +141,15 @@ class MigrationRepository
         } else {
             $this->database = $this->app['database'];
         }
+    }
+
+    /**
+     * Get the database source.
+     *
+     * @return object
+     */
+    public function getSource()
+    {
+        return $this->database;
     }
 }
